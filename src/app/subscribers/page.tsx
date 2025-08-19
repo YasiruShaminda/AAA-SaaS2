@@ -1,11 +1,11 @@
 
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Download, Trash2, Upload, Eye, EyeOff, PlusCircle, Search, MoreHorizontal, Pencil, SlidersHorizontal, Users2, Package, FolderKanban } from 'lucide-react';
+import { Download, Trash2, Upload, Eye, EyeOff, PlusCircle, Search, MoreHorizontal, Pencil, SlidersHorizontal, Users2, Package, FolderKanban, ArrowRight } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -14,39 +14,40 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-
-
-const sampleSubscribers = [
-    { id: 1, username: 'user_one', pass: 'pass123', fullname: 'User One', product: 'Premium', group: 'Enterprise', status: 'Online' },
-    { id: 2, username: 'user_two', pass: 'secret', fullname: 'User Two', product: 'Basic', group: 'FTTX', status: 'Offline' },
-    { id: 3, username: 'user_three', pass: 'qwerty', fullname: 'User Three', product: 'Premium', group: 'Enterprise', status: 'Online' },
-    { id: 4, username: 'user_four', pass: 'password', fullname: 'User Four', product: 'Family', group: 'Guest', status: 'Offline' },
-];
-
-const sampleProducts = [
-    { id: 'prod_1', name: 'Basic', bandwidthUp: '5 Mbps', bandwidthDown: '25 Mbps', sessionLimit: '24h', subscribers: 1 },
-    { id: 'prod_2', name: 'Premium', bandwidthUp: '50 Mbps', bandwidthDown: '250 Mbps', sessionLimit: '72h', subscribers: 2 },
-    { id: 'prod_3', name: 'Family', bandwidthUp: '10 Mbps', bandwidthDown: '50 Mbps', sessionLimit: '48h', subscribers: 1 },
-];
-
-const sampleGroups = [
-    { id: 'grp_1', name: 'Enterprise', description: 'Corporate users with full access', subscribers: 2, profile: 'Enterprise AAA' },
-    { id: 'grp_2', name: 'FTTX', description: 'Fiber-to-the-home residential users', subscribers: 1, profile: 'Wi-Fi Hotspot (Auth-Only)'},
-    { id: 'grp_3', name: 'Guest', description: 'Guest wifi users with limited access', subscribers: 1, profile: 'Wi-Fi Hotspot (Auth-Only)'},
-];
-
-const sampleProfiles = [
-    { id: 'tpl-wifi-hotspot', name: 'Wi-Fi Hotspot (Auth-Only)'},
-    { id: 'tpl-enterprise-aaa', name: 'Enterprise AAA' },
-];
-
+import { useOrganization, type Subscriber, type Product, type Group } from '@/contexts/OrganizationContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
+import { cn } from '@/lib/utils';
 
 export default function SubscribersPage() {
-    const [subscribers, setSubscribers] = useState(sampleSubscribers);
-    const [products, setProducts] = useState(sampleProducts);
-    const [groups, setGroups] = useState(sampleGroups);
+    const { 
+        subscribers, 
+        products, 
+        groups, 
+        profiles,
+        setSubscribers, 
+        setProducts, 
+        setGroups
+    } = useOrganization();
+    const { user } = useAuth();
+    const router = useRouter();
+
     const [showPassword, setShowPassword] = useState(false);
+    const [showGroupsHint, setShowGroupsHint] = useState(false);
+    const [showProjectButton, setShowProjectButton] = useState(false);
+
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+     useEffect(() => {
+        if (user) {
+            const hintEnabled = localStorage.getItem(`onboarding_show_groups_hint_${user.name}`) === 'true';
+            setShowGroupsHint(hintEnabled);
+
+            const projectButtonEnabled = localStorage.getItem(`onboarding_show_project_button_${user.name}`) === 'true';
+            setShowProjectButton(projectButtonEnabled);
+        }
+    }, [user]);
+
 
     const handleFileSelect = (file: File) => {
         console.log("New file selected:", file.name);
@@ -58,6 +59,7 @@ export default function SubscribersPage() {
     };
 
     const downloadCsv = () => {
+        if (subscribers.length === 0) return;
         const headers = Object.keys(subscribers[0]).filter(h => h !== 'pass');
         const csvContent = "data:text/csv;charset=utf-8,"
             + [headers.join(","), ...subscribers.map(row => headers.map(h => (row as any)[h]).join(","))].join("\n");
@@ -70,9 +72,27 @@ export default function SubscribersPage() {
         document.body.removeChild(link);
     };
 
+    const handleTabChange = (value: string) => {
+        if (value === 'groups' && showGroupsHint && user) {
+            localStorage.removeItem(`onboarding_show_groups_hint_${user.name}`);
+            localStorage.setItem(`onboarding_show_project_button_${user.name}`, 'true');
+            setShowGroupsHint(false);
+            setShowProjectButton(true);
+        }
+    };
+
+    const handleTryProjectClick = () => {
+        if (user) {
+            localStorage.removeItem(`onboarding_show_project_button_${user.name}`);
+            localStorage.setItem(`onboarding_complete_project_${user.name}`, 'false');
+        }
+        setShowProjectButton(false);
+        router.push('/projects');
+    };
+
     return (
         <div className="mx-auto max-w-7xl space-y-8">
-            <Tabs defaultValue="subscribers">
+            <Tabs defaultValue="subscribers" onValueChange={handleTabChange}>
                 <TabsList className="max-w-lg">
                     <TabsTrigger value="subscribers">
                         <Users2 className="mr-2" /> Subscribers
@@ -80,7 +100,7 @@ export default function SubscribersPage() {
                     <TabsTrigger value="products">
                         <Package className="mr-2" /> Products
                     </TabsTrigger>
-                    <TabsTrigger value="groups">
+                     <TabsTrigger value="groups" className={cn(showGroupsHint && "animate-pulse ring-2 ring-primary ring-offset-2 ring-offset-background")}>
                         <FolderKanban className="mr-2" /> Groups
                     </TabsTrigger>
                 </TabsList>
@@ -346,7 +366,7 @@ export default function SubscribersPage() {
                                                 <Select>
                                                     <SelectTrigger className="col-span-3"><SelectValue placeholder="Select a profile" /></SelectTrigger>
                                                     <SelectContent>
-                                                        {sampleProfiles.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                                                        {profiles.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                                                     </SelectContent>
                                                 </Select>
                                             </div>
@@ -390,9 +410,19 @@ export default function SubscribersPage() {
                                 </TableBody>
                             </Table>
                         </CardContent>
+                         {showProjectButton && (
+                            <CardFooter className="pt-6 justify-center">
+                                <Button size="lg" className="animate-pulse" onClick={handleTryProjectClick}>
+                                    Try out your first AAA project
+                                    <ArrowRight className="ml-2"/>
+                                </Button>
+                            </CardFooter>
+                        )}
                      </Card>
                 </TabsContent>
             </Tabs>
         </div>
     );
 }
+
+    

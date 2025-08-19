@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PlusCircle, Trash2, Copy, FileText, Wifi, Building, X, MoreHorizontal, RefreshCw, FolderKanban, Search, Eye, EyeOff, ChevronLeft, Pencil, Library } from 'lucide-react';
+import { PlusCircle, Trash2, Copy, FileText, Wifi, Building, X, MoreHorizontal, RefreshCw, FolderKanban, Search, Eye, EyeOff, ChevronLeft, Pencil, Library, FlaskConical } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -19,10 +19,15 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { TemplateManagerDialog, type ProfileTemplate } from '@/components/projects/TemplateManager';
+import { useOrganization } from '@/contexts/OrganizationContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
+import { PreviewAnimation } from '@/components/projects/PreviewAnimation';
 
 // Data types from the old /profiles page
 type ProfileAttributeType = 'checkAttributes' | 'replyAttributes' | 'vendorAttributes' | 'accountingAttributes';
-type Profile = {
+export type Profile = {
     authEnabled: boolean;
     acctEnabled: boolean;
     checkAttributes: string[];
@@ -32,7 +37,7 @@ type Profile = {
 };
 
 // New Project Data Type
-type Project = {
+export type Project = {
     id: string;
     name: string;
     description: string;
@@ -42,44 +47,6 @@ type Project = {
     subscriberGroups: string[];
     profile: Profile;
 };
-
-// Initial Data
-const initialProjects: Project[] = [
-    {
-        id: 'proj-1',
-        name: 'Enterprise AAA',
-        description: 'Full AAA profile for corporate networks with accounting.',
-        status: 'Active',
-        createdAt: '2024-07-20',
-        sharedSecret: 'super-secret-key-1',
-        subscriberGroups: ['Enterprise', 'VPN-Users'],
-        profile: {
-            authEnabled: true,
-            acctEnabled: true,
-            checkAttributes: ['User-Name', 'User-Password'],
-            replyAttributes: ['Framed-IP-Address', 'Class'],
-            vendorAttributes: ['Cisco-AVPair'],
-            accountingAttributes: ['Acct-Status-Type', 'Acct-Session-Id', 'Acct-Input-Octets', 'Acct-Output-Octets'],
-        },
-    },
-     {
-        id: 'proj-2',
-        name: 'Guest Wi-Fi Hotspot',
-        description: 'Simple authentication for public Wi-Fi. No accounting.',
-        status: 'Draft',
-        createdAt: '2024-06-15',
-        sharedSecret: 'guest-secret-key-2',
-        subscriberGroups: ['Guest'],
-        profile: {
-            authEnabled: true,
-            acctEnabled: false,
-            checkAttributes: ['User-Name', 'User-Password'],
-            replyAttributes: ['Session-Timeout', 'Idle-Timeout'],
-            vendorAttributes: [],
-            accountingAttributes: [],
-        },
-    }
-];
 
 const allRadiusAttributes = [
     'User-Name', 'User-Password', 'CHAP-Password', 'NAS-IP-Address', 'NAS-Port', 
@@ -99,10 +66,21 @@ const subscriberGroups = ['Enterprise', 'FTTX', 'Guest', 'VPN-Users', 'IoT-Devic
 
 // Project Editor Component
 function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBack }: { project: Project, onUpdate: (project: Project) => void, onSave: () => void, onDelete: () => void, onDuplicate: () => void, onBack: () => void }) {
+    const router = useRouter();
+    const { user } = useAuth();
     const [showSecret, setShowSecret] = useState(false);
     const [editedHeader, setEditedHeader] = useState({ name: project.name, description: project.description });
     const [isEditHeaderOpen, setIsEditHeaderOpen] = useState(false);
     const [isTemplateManagerOpen, setTemplateManagerOpen] = useState(false);
+    const [showPreviewHint, setShowPreviewHint] = useState(false);
+    const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+    useEffect(() => {
+        if (user) {
+            const hintEnabled = localStorage.getItem(`onboarding_show_preview_hint_${user.name}`) === 'true';
+            setShowPreviewHint(hintEnabled);
+        }
+    }, [user]);
 
     const handleProfileUpdate = (field: keyof Profile, value: any) => {
         onUpdate({ ...project, profile: { ...project.profile, [field]: value }});
@@ -142,6 +120,15 @@ function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBac
         onUpdate({ ...project, profile: newProfile });
         setTemplateManagerOpen(false);
     };
+    
+    const handlePreviewClick = () => {
+        onSave();
+        if (user) {
+            localStorage.removeItem(`onboarding_show_preview_hint_${user.name}`);
+        }
+        setShowPreviewHint(false);
+        setIsPreviewOpen(true);
+    }
 
     return (
         <div className="space-y-6">
@@ -300,8 +287,8 @@ function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBac
                             </div>
                              <Tabs defaultValue="check">
                                 <TabsList>
-                                    <TabsTrigger value="check" disabled={!project.profile.authEnabled}>Check Attributes</TabsTrigger>
-                                    <TabsTrigger value="reply" disabled={!project.profile.authEnabled}>Reply Attributes</TabsTrigger>
+                                    <TabsTrigger value="check" disabled={!project.profile.authEnabled}>Auth Request</TabsTrigger>
+                                    <TabsTrigger value="reply" disabled={!project.profile.authEnabled}>Auth Reply</TabsTrigger>
                                     <TabsTrigger value="accounting" disabled={!project.profile.acctEnabled}>Accounting Attributes</TabsTrigger>
                                     <TabsTrigger value="vendor">Vendor-Specific</TabsTrigger>
                                 </TabsList>
@@ -345,6 +332,26 @@ function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBac
                     </Card>
                 </div>
             </div>
+             <div className="flex justify-center items-center gap-4 py-6">
+                <Button 
+                    size="lg" 
+                    onClick={handlePreviewClick}
+                    className={cn(showPreviewHint && "animate-pulse")}
+                    disabled={!project.name.trim() || !project.sharedSecret.trim() || project.subscriberGroups.length === 0}
+                >
+                    <Eye className="mr-2"/>
+                    Preview
+                </Button>
+                <Button 
+                    size="lg" 
+                    variant="outline"
+                >
+                    <FlaskConical className="mr-2"/>
+                    Test with your real device
+                </Button>
+            </div>
+
+            <PreviewAnimation open={isPreviewOpen} onOpenChange={setIsPreviewOpen} profile={project.profile} />
         </div>
     );
 }
@@ -397,11 +404,30 @@ function AttributeEditor({ attributes, type, onToggle, onRemove, isDisabled }: {
 
 // Main Page Component
 export default function ProjectsPage() {
-    const [projects, setProjects] = useState<Project[]>(initialProjects);
+    const { projects, setProjects } = useOrganization();
+    const { user } = useAuth();
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+    const [isBlinking, setIsBlinking] = useState(false);
+
+     useEffect(() => {
+        if (user) {
+            const onboardingStatus = localStorage.getItem(`onboarding_complete_project_${user.name}`);
+            if (onboardingStatus === 'false') {
+                setIsBlinking(true);
+            }
+        }
+    }, [user]);
 
     const handleSelectProject = (project: Project) => {
         setSelectedProject(project);
+        if (user) {
+            const onboardingStatus = localStorage.getItem(`onboarding_complete_project_${user.name}`);
+            if (onboardingStatus === 'false') {
+                localStorage.setItem(`onboarding_show_preview_hint_${user.name}`, 'true');
+                localStorage.setItem(`onboarding_complete_project_${user.name}`, 'true');
+            }
+            setIsBlinking(false);
+        }
     };
     
     const handleBack = () => {
@@ -508,7 +534,7 @@ export default function ProjectsPage() {
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                      {projects.map(project => (
-                        <Card key={project.id} className="cursor-pointer hover:border-primary" onClick={() => handleSelectProject(project)}>
+                        <Card key={project.id} className={cn("cursor-pointer hover:border-primary", isBlinking && "animate-pulse border-primary ring-2 ring-primary")} onClick={() => handleSelectProject(project)}>
                             <CardHeader>
                                 <CardTitle className="flex justify-between items-center">
                                     <span>{project.name}</span>
@@ -530,4 +556,9 @@ export default function ProjectsPage() {
         </div>
     );
 }
+
+    
+
+    
+
 

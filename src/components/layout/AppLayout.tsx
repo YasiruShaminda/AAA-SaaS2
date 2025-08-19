@@ -11,45 +11,45 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '../ui/button';
 import { PlusCircle } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { selectedOrganization, isLoaded } = useOrganization();
+  const { user, isLoaded: isAuthLoaded } = useAuth();
+  const { selectedOrganization, isLoaded: isOrgLoaded } = useOrganization();
 
-  const unprotectedRoutes = ['/login', '/organizations', '/organizations/new'];
+  const unprotectedRoutes = ['/login'];
   const isUnprotected = unprotectedRoutes.includes(pathname);
+  const isOrgSetup = pathname.startsWith('/organizations');
 
   // Onboarding flow: if no organization is selected, redirect to the organization page
   // unless we are already on an unprotected page.
   useEffect(() => {
-    if (isLoaded && !selectedOrganization && !isUnprotected) {
-        router.push('/organizations');
+    if (isAuthLoaded && !user && !isUnprotected) {
+      router.push('/login');
     }
-  }, [isLoaded, selectedOrganization, pathname, router, isUnprotected]);
+
+    if (isAuthLoaded && user && isOrgLoaded && !selectedOrganization && !isOrgSetup) {
+      const userOrgs = JSON.parse(localStorage.getItem(`organizations_${user.name}`) || '[]');
+      if (userOrgs.length > 0) {
+        router.push('/organizations');
+      } else {
+        router.push('/organizations/new');
+      }
+    }
+  }, [isAuthLoaded, user, isOrgLoaded, selectedOrganization, pathname, router, isUnprotected, isOrgSetup]);
 
 
   const renderContent = () => {
-    if (!isLoaded && !isUnprotected) {
+    const isLoading = !isAuthLoaded || (user && !isOrgLoaded);
+    if (isLoading && !isUnprotected) {
       return <PageLoader />;
     }
     
-    if (isLoaded && !selectedOrganization && !isUnprotected) {
-      return (
-         <main className="flex-1 p-4 sm:p-6 lg:p-8 flex items-center justify-center">
-            <Card className="max-w-lg w-full glass-card">
-              <CardHeader>
-                <CardTitle>Welcome to Monyfi SaaS</CardTitle>
-                <CardDescription>To get started, please select an organization to manage.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button className="w-full" onClick={() => router.push('/organizations')}>
-                    Go to Organizations
-                </Button>
-              </CardContent>
-            </Card>
-        </main>
-      )
+    // This case is handled by the redirect in useEffect
+    if (user && !selectedOrganization && !isOrgSetup) {
+       return <PageLoader />;
     }
 
     return (
@@ -60,6 +60,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   if (isUnprotected) {
+    return <>{children}</>;
+  }
+  
+  // Also treat org setup pages as standalone layouts
+  if (isOrgSetup) {
     return <>{children}</>;
   }
 

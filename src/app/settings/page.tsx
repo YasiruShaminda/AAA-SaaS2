@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Checkbox } from "@/components/ui/checkbox";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { useRouter } from "next/navigation";
+
 
 const apiKeys = [
     { key: 'sk_live_...aBcD', created: '2024-07-01', lastUsed: '2024-07-22', usage: 1423 },
@@ -36,8 +39,8 @@ const teamUsers = [
 ];
 
 
-const OrganizationRow = ({ org, onSelect }: { org: Organization, onSelect: (org: Organization) => void }) => {
-    const { selectedOrganization } = useOrganization();
+const OrganizationRow = ({ org, onSelect, onAfterDelete }: { org: Organization, onSelect: (org: Organization) => void, onAfterDelete: () => void }) => {
+    const { selectedOrganization, deleteOrganization } = useOrganization();
     
     const getStatusBadgeClass = (status: Organization['status']) => {
         switch (status) {
@@ -51,6 +54,11 @@ const OrganizationRow = ({ org, onSelect }: { org: Organization, onSelect: (org:
                 return '';
         }
     };
+
+    const handleDelete = () => {
+        deleteOrganization(org.id);
+        onAfterDelete();
+    }
 
     return (
         <TableRow className="hover:bg-muted/50 cursor-pointer" onClick={() => onSelect(org)}>
@@ -71,7 +79,25 @@ const OrganizationRow = ({ org, onSelect }: { org: Organization, onSelect: (org:
                     </DropdownMenuTrigger>
                     <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
                         <DropdownMenuItem><Pencil className="mr-2 size-4" /> Edit</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2 size-4" /> Delete</DropdownMenuItem>
+                         <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
+                                    <Trash2 className="mr-2 size-4" /> Delete
+                                </DropdownMenuItem>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This action cannot be undone. This will permanently delete the <strong>{org.name}</strong> organization and all its data.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                     </DropdownMenuContent>
                 </DropdownMenu>
             </TableCell>
@@ -85,7 +111,8 @@ export default function SettingsPage() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [newOrgName, setNewOrgName] = useState('');
     const [newOrgDesc, setNewOrgDesc] = useState('');
-    
+    const router = useRouter();
+
     const generateSecret = () => {
         setSharedSecret(Math.random().toString(36).substring(2));
     }
@@ -109,6 +136,12 @@ export default function SettingsPage() {
         setNewOrgName('');
         setNewOrgDesc('');
         setIsAddModalOpen(false);
+    }
+    
+    const checkEmptyOrgs = () => {
+        if (organizations.length === 0) {
+            router.push('/organizations/new');
+        }
     }
 
   return (
@@ -221,7 +254,7 @@ export default function SettingsPage() {
                             </TableHeader>
                             <TableBody>
                                 {organizations.map(org => (
-                                    <OrganizationRow key={org.id} org={org} onSelect={selectOrganization} />
+                                    <OrganizationRow key={org.id} org={org} onSelect={selectOrganization} onAfterDelete={checkEmptyOrgs} />
                                 ))}
                             </TableBody>
                         </Table>
@@ -523,5 +556,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
-    
