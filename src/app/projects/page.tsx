@@ -124,7 +124,6 @@ function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBac
     };
     
     const handlePreviewClick = () => {
-        onSave();
         if (user) {
             localStorage.removeItem(`onboarding_show_preview_hint_${user.name}`);
         }
@@ -491,7 +490,6 @@ export default function ProjectsPage() {
     const saveProject = () => {
         if (!selectedProject) return;
         setProjects(prev => prev.map(p => p.id === selectedProject.id ? selectedProject : p));
-        alert('Project saved!'); // Replace with a better notification
     };
 
     const deleteProject = () => {
@@ -587,6 +585,7 @@ export default function ProjectsPage() {
     
 
     
+
 
 
 
