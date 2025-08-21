@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from "react";
@@ -9,12 +10,14 @@ import { useOrganization } from "@/contexts/OrganizationContext";
 import type { Organization } from "@/contexts/OrganizationContext";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import type { User } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { LogOut, User as UserIcon } from "lucide-react";
 
 export default function NewOrganizationPage() {
     const { addOrganization, addDefaultDataForNewOrg, organizations, selectOrganization } = useOrganization();
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
     const router = useRouter();
     const { toast } = useToast();
     const [name, setName] = useState('');
@@ -46,15 +49,21 @@ export default function NewOrganizationPage() {
             status: 'Trial',
         };
         
-        // Mark first login as complete if applicable
+        // Add the organization but don't auto-select yet. We will do it manually.
+        addOrganization(newOrg, false); 
+        
+        // This logic runs for the very first organization created by a user.
         if (user && organizations.length === 0) {
             addDefaultDataForNewOrg();
-            localStorage.setItem(`onboarding_complete_${user.name}`, 'false');
+            // Set flags to trigger onboarding hints on the subscribers page.
+            localStorage.setItem(`onboarding_show_groups_hint_${user.name}`, 'true');
         }
-        
-        addOrganization(newOrg, false); // Don't auto-select here
 
-        router.push('/organizations');
+        // Manually select the new org. The callback ensures the redirect
+        // happens only after the state has been successfully updated.
+        selectOrganization(newOrg, () => {
+            router.push('/subscribers');
+        });
     };
     
     if (!user) {
@@ -66,7 +75,26 @@ export default function NewOrganizationPage() {
     }
 
     return (
-        <div className="flex h-screen items-center justify-center bg-background px-4">
+        <div className="relative flex h-screen items-center justify-center bg-background px-4">
+            <div className="absolute top-4 right-4">
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Avatar className="cursor-pointer">
+                            <AvatarImage src="/profile-pic.png" alt="User Profile Picture" />
+                            <AvatarFallback>
+                                <UserIcon className="h-6 w-6" />
+                            </AvatarFallback>
+                        </Avatar>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                        <DropdownMenuItem onClick={logout}>
+                            <LogOut className="mr-2" />
+                            Logout
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
+
            <div className="w-full max-w-xl text-left">
                 <h1 className="text-4xl md:text-5xl font-bold font-headline text-foreground">
                     Welcome, {user?.name}!

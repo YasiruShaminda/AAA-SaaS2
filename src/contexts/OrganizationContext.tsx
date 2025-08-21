@@ -225,17 +225,24 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
         } else if (user) {
             localStorage.removeItem(`selectedOrganizationId_${user.name}`);
         }
+        
+        // The callback ensures that any subsequent action (like a redirect)
+        // happens after the state has been updated.
         if (onSelect) {
-            onSelect();
+            // Using a timeout to ensure the state update has propagated
+            setTimeout(onSelect, 0);
         }
     };
     
     const addOrganization = (organization: Organization, shouldAutoSelect = true) => {
-        const newOrgs = [...organizations, organization];
-        setOrganizations(newOrgs);
-        if (shouldAutoSelect) {
-            selectOrganization(organization);
-        }
+        setOrganizations(prev => {
+            const newOrgs = [...prev, organization];
+            if (shouldAutoSelect) {
+                // This will be called after the organizations state is updated
+                selectOrganization(organization);
+            }
+            return newOrgs;
+        });
     };
     
     const deleteOrganization = (orgId: string) => {

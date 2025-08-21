@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PlusCircle, Trash2, Copy, FileText, Wifi, Building, X, MoreHorizontal, RefreshCw, FolderKanban, Search, Eye, EyeOff, ChevronLeft, Pencil, Library, FlaskConical } from 'lucide-react';
+import { PlusCircle, Trash2, Copy, FileText, Wifi, Building, X, MoreHorizontal, RefreshCw, FolderKanban, Search, Eye, EyeOff, ChevronLeft, Pencil, Library, FlaskConical, Terminal, Loader } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -74,6 +74,8 @@ function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBac
     const [isTemplateManagerOpen, setTemplateManagerOpen] = useState(false);
     const [showPreviewHint, setShowPreviewHint] = useState(false);
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+    const [isCliTestOpen, setIsCliTestOpen] = useState(false);
+
 
     useEffect(() => {
         if (user) {
@@ -342,13 +344,38 @@ function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBac
                     <Eye className="mr-2"/>
                     Preview
                 </Button>
-                <Button 
-                    size="lg" 
-                    variant="outline"
-                >
-                    <FlaskConical className="mr-2"/>
-                    Test with your real device
-                </Button>
+                <Dialog open={isCliTestOpen} onOpenChange={setIsCliTestOpen}>
+                    <DialogTrigger asChild>
+                        <Button 
+                            size="lg" 
+                            variant="outline"
+                        >
+                            <FlaskConical className="mr-2"/>
+                            Test with your real device
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                        <DialogHeader>
+                            <DialogTitle>Real Device Test</DialogTitle>
+                            <DialogDescription>
+                                Configure your device to send RADIUS packets to the Monyfi controller.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="bg-slate-950 rounded-lg p-4 font-mono text-sm text-green-400 min-h-[300px]">
+                           <p className="flex items-center gap-2">
+                                <Terminal className="size-4" />
+                                <span>Send packets from your device...</span>
+                            </p>
+                            <p className="flex items-center gap-2 mt-2">
+                                <Loader className="size-4 animate-spin" />
+                                <span>Waiting for connection...</span>
+                           </p>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsCliTestOpen(false)}>Close</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
 
             <PreviewAnimation open={isPreviewOpen} onOpenChange={setIsPreviewOpen} profile={project.profile} />
@@ -560,5 +587,8 @@ export default function ProjectsPage() {
     
 
     
+
+
+
 
 
