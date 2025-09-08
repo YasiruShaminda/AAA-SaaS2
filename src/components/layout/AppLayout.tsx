@@ -4,7 +4,11 @@
 import React, { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { SidebarProvider, Sidebar, SidebarInset, SidebarRail } from '@/components/ui/sidebar';
-import { AppSidebar } from '@/components/layout/AppSidebar';
+import dynamic from 'next/dynamic';
+
+const AppSidebar = dynamic(() => import('@/components/layout/AppSidebar').then(mod => mod.AppSidebar), {
+  ssr: false,
+});
 import { AppHeader } from './AppHeader';
 import { PageLoader } from './PageLoader';
 import { useOrganization } from '@/contexts/OrganizationContext';
