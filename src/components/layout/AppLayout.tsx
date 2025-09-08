@@ -16,7 +16,7 @@ import { useAsgardeo } from '@asgardeo/nextjs';
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isLoading, signIn } = useAsgardeo();
+  const { user, isLoading } = useAsgardeo();
   const { selectedOrganization, isLoaded: isOrgLoaded } = useOrganization();
 
   const unprotectedRoutes = ['/login'];
@@ -26,6 +26,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   // Onboarding flow: if no organization is selected, redirect to the organization page
   // unless we are already on an unprotected page.
   useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     if (!isLoading && !user && !isUnprotected) {
       router.push('/login');
     }

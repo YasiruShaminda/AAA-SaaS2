@@ -146,6 +146,7 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
     const [profiles, setProfiles] = useState<Profile[]>(sampleProfiles);
 
     const loadDataForUser = useCallback((username: string) => {
+        if (typeof window === 'undefined') return;
         console.log(`Loading data for ${username}`);
         const storedOrgs = localStorage.getItem(`organizations_${username}`);
         const orgs = storedOrgs ? JSON.parse(storedOrgs) : (username === 'Admin' ? sampleOrganizations : []);
@@ -179,7 +180,9 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
     }, []);
 
     const saveDataForUser = useCallback((username: string, dataType: string, data: any) => {
-        localStorage.setItem(`${dataType}_${username}`, JSON.stringify(data));
+        if (typeof window !== 'undefined') {
+            localStorage.setItem(`${dataType}_${username}`, JSON.stringify(data));
+        }
     }, []);
 
     useEffect(() => {
@@ -220,10 +223,12 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
 
     const selectOrganization = (organization: Organization | null, onSelect?: () => void) => {
         setSelectedOrganization(organization);
-        if (organization && user) {
-            localStorage.setItem(`selectedOrganizationId_${user.username}`, organization.id);
-        } else if (user) {
-            localStorage.removeItem(`selectedOrganizationId_${user.username}`);
+        if (typeof window !== 'undefined') {
+            if (organization && user) {
+                localStorage.setItem(`selectedOrganizationId_${user.username}`, organization.id);
+            } else if (user) {
+                localStorage.removeItem(`selectedOrganizationId_${user.username}`);
+            }
         }
         
         // The callback ensures that any subsequent action (like a redirect)

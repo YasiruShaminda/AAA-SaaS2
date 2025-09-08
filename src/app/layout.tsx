@@ -1,12 +1,14 @@
-
 import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Suspense } from 'react';
 import { PageLoader } from '@/components/layout/PageLoader';
-import { OrganizationProvider } from '@/contexts/OrganizationContext';
-import { AsgardeoProviderWrapper } from "@/components/auth/AsgardeoProviderWrapper";
+import dynamic from 'next/dynamic';
+
+const ClientProviders = dynamic(() => import('@/components/ClientProviders').then(mod => mod.ClientProviders), {
+  ssr: false,
+});
 
 export const metadata: Metadata = {
   title: 'Monyfi SaaS',
@@ -28,13 +30,11 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <Suspense fallback={<PageLoader />}>
-          <AsgardeoProviderWrapper>
-            <OrganizationProvider>
-                <AppLayout>
-                  {children}
-                </AppLayout>
-            </OrganizationProvider>
-          </AsgardeoProviderWrapper>
+          <ClientProviders>
+            <AppLayout>
+              {children}
+            </AppLayout>
+          </ClientProviders>
         </Suspense>
         <Toaster />
       </body>
