@@ -19,6 +19,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
 
 
 const apiKeys = [
@@ -112,6 +113,7 @@ export default function SettingsPage() {
     const [newOrgName, setNewOrgName] = useState('');
     const [newOrgDesc, setNewOrgDesc] = useState('');
     const router = useRouter();
+    const { toast } = useToast();
 
     const generateSecret = () => {
         setSharedSecret(Math.random().toString(36).substring(2));
@@ -123,10 +125,27 @@ export default function SettingsPage() {
     }
 
     const handleAddNewOrg = () => {
-        if (!newOrgName.trim()) return;
+        if (!newOrgName.trim()) {
+            toast({
+                variant: "destructive",
+                title: "Organization name required",
+                description: "Please enter a name for the organization.",
+            });
+            return;
+        }
+
+        if (organizations.some(org => org.name.toLowerCase() === newOrgName.trim().toLowerCase())) {
+            toast({
+                variant: "destructive",
+                title: "Organization name exists",
+                description: "An organization with this name already exists. Please choose a different name.",
+            });
+            return;
+        }
+
         const newOrg: Organization = {
             id: `org-${Date.now()}`,
-            name: newOrgName,
+            name: newOrgName.trim(),
             description: newOrgDesc,
             type: 'Client',
             subscribers: 0,

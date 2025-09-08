@@ -10,12 +10,23 @@ import { useRouter } from "next/navigation";
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import type { Organization } from '@/contexts/OrganizationContext';
+
 
 export default function OrganizationsPage() {
-    const { organizations, selectOrganization, isLoaded } = useOrganization();
+    const { organizations, selectOrganization, isLoaded, addOrganization } = useOrganization();
     const { user } = useAuth();
     const router = useRouter();
     const [isFirstLogin, setIsFirstLogin] = useState(false);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [newOrgName, setNewOrgName] = useState('');
+    const [newOrgDesc, setNewOrgDesc] = useState('');
+    const { toast } = useToast();
+
 
     useEffect(() => {
         if (isLoaded && organizations.length === 0) {
@@ -46,6 +57,44 @@ export default function OrganizationsPage() {
         selectOrganization(org, () => {
             router.push(destination);
         });
+    }
+    
+     const handleAddNewOrg = () => {
+        if (!newOrgName.trim()) {
+            toast({
+                variant: "destructive",
+                title: "Organization name required",
+                description: "Please enter a name for the organization.",
+            });
+            return;
+        }
+
+        if (organizations.some(org => org.name.toLowerCase() === newOrgName.trim().toLowerCase())) {
+            toast({
+                variant: "destructive",
+                title: "Organization name exists",
+                description: "An organization with this name already exists. Please choose a different name.",
+            });
+            return;
+        }
+
+        const newOrg: Organization = {
+            id: `org-${Date.now()}`,
+            name: newOrgName.trim(),
+            description: newOrgDesc,
+            type: 'Client',
+            subscribers: 0,
+            status: 'Trial',
+        };
+
+        addOrganization(newOrg, false);
+        selectOrganization(newOrg, () => {
+            router.push('/subscribers');
+        });
+
+        setNewOrgName('');
+        setNewOrgDesc('');
+        setIsAddModalOpen(false);
     }
 
     const PageContent = () => {
@@ -109,15 +158,38 @@ export default function OrganizationsPage() {
                         </CardContent>
                     </Card>
                 ))}
-                 <Card
-                    className="glass-card cursor-pointer transition-all hover:border-primary hover:shadow-lg hover:-translate-y-1 flex items-center justify-center border-dashed"
-                    onClick={() => router.push('/organizations/new')}
-                >
-                    <div className="text-center text-muted-foreground">
-                        <PlusCircle className="size-8 mx-auto mb-2" />
-                        <p>Create New</p>
-                    </div>
-                </Card>
+                 <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+                    <DialogTrigger asChild>
+                         <Card
+                            className="glass-card cursor-pointer transition-all hover:border-primary hover:shadow-lg hover:-translate-y-1 flex items-center justify-center border-dashed"
+                        >
+                            <div className="text-center text-muted-foreground">
+                                <PlusCircle className="size-8 mx-auto mb-2" />
+                                <p>Create New</p>
+                            </div>
+                        </Card>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Create New Organization</DialogTitle>
+                            <DialogDescription>Enter the details for your new organization.</DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="org-name">Organization Name</Label>
+                                <Input id="org-name" value={newOrgName} onChange={(e) => setNewOrgName(e.target.value)} placeholder="e.g. My Next Company"/>
+                            </div>
+                                <div className="space-y-2">
+                                <Label htmlFor="org-desc">Description (Optional)</Label>
+                                <Input id="org-desc" value={newOrgDesc} onChange={(e) => setNewOrgDesc(e.target.value)} placeholder="e.g. A new venture"/>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
+                            <Button onClick={handleAddNewOrg}>Create and Select</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                 </Dialog>
             </>
         );
     }

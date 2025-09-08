@@ -61,11 +61,8 @@ const allRadiusAttributes = [
     'Acct-Link-Count', 'Cisco-AVPair', 'Ruckus-Wlan-ID', 'Actiontec-VLAN-ID'
 ];
 
-const subscriberGroups = ['Enterprise', 'FTTX', 'Guest', 'VPN-Users', 'IoT-Devices'];
-
-
 // Project Editor Component
-function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBack }: { project: Project, onUpdate: (project: Project) => void, onSave: () => void, onDelete: () => void, onDuplicate: () => void, onBack: () => void }) {
+function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBack, subscriberGroups }: { project: Project, onUpdate: (project: Project) => void, onSave: () => void, onDelete: () => void, onDuplicate: () => void, onBack: () => void, subscriberGroups: string[] }) {
     const router = useRouter();
     const { user } = useAuth();
     const [showSecret, setShowSecret] = useState(false);
@@ -430,7 +427,7 @@ function AttributeEditor({ attributes, type, onToggle, onRemove, isDisabled }: {
 
 // Main Page Component
 export default function ProjectsPage() {
-    const { projects, setProjects } = useOrganization();
+    const { projects, setProjects, groups } = useOrganization();
     const { user } = useAuth();
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
     const [isBlinking, setIsBlinking] = useState(false);
@@ -494,11 +491,9 @@ export default function ProjectsPage() {
 
     const deleteProject = () => {
         if (!selectedProject) return;
-        setProjects(prev => {
-            const newProjects = prev.filter(p => p.id !== selectedProject.id);
-            setSelectedProject(newProjects.length > 0 ? newProjects[0] : null);
-            return newProjects;
-        });
+        const newProjects = projects.filter(p => p.id !== selectedProject.id);
+        setProjects(newProjects);
+        setSelectedProject(newProjects.length > 0 ? newProjects[0] : null);
     };
     
     const duplicateProject = () => {
@@ -522,6 +517,7 @@ export default function ProjectsPage() {
                 onDelete={deleteProject}
                 onDuplicate={duplicateProject}
                 onBack={handleBack}
+                subscriberGroups={groups.map(g => g.name)}
             />
         )
     }
@@ -585,6 +581,8 @@ export default function ProjectsPage() {
     
 
     
+
+
 
 
 

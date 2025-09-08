@@ -37,6 +37,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import type { Organization } from '@/contexts/OrganizationContext';
+import { useToast } from '@/hooks/use-toast';
 
 const Logo = () => (
     <div className="flex items-center justify-center size-10 rounded-lg">
@@ -73,6 +74,7 @@ export function AppSidebar() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newOrgName, setNewOrgName] = useState('');
   const [newOrgDesc, setNewOrgDesc] = useState('');
+  const { toast } = useToast();
 
   const handleOrgSelect = (org: (typeof organizations)[0]) => {
     selectOrganization(org, () => {
@@ -82,10 +84,27 @@ export function AppSidebar() {
   }
 
   const handleAddNewOrg = () => {
-    if (!newOrgName.trim()) return;
+    if (!newOrgName.trim()) {
+        toast({
+            variant: "destructive",
+            title: "Organization name required",
+            description: "Please enter a name for the organization.",
+        });
+        return;
+    }
+
+    if (organizations.some(org => org.name.toLowerCase() === newOrgName.trim().toLowerCase())) {
+        toast({
+            variant: "destructive",
+            title: "Organization name exists",
+            description: "An organization with this name already exists. Please choose a different name.",
+        });
+        return;
+    }
+
     const newOrg: Organization = {
         id: `org-${Date.now()}`,
-        name: newOrgName,
+        name: newOrgName.trim(),
         description: newOrgDesc,
         type: 'Client',
         subscribers: 0,

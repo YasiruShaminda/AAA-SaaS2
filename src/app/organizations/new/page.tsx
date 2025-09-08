@@ -21,6 +21,7 @@ export default function NewOrganizationPage() {
     const router = useRouter();
     const { toast } = useToast();
     const [name, setName] = useState('');
+    const [isCreating, setIsCreating] = useState(false);
     
     useEffect(() => {
         // If an existing user with orgs lands here, send them away.
@@ -31,18 +32,32 @@ export default function NewOrganizationPage() {
 
 
     const handleCreate = () => {
+        if (isCreating) return;
+        setIsCreating(true);
+
         if (!name.trim()) {
              toast({
                 variant: "destructive",
                 title: "Organization name required",
                 description: "Please enter a name for your organization.",
             });
+            setIsCreating(false);
+            return;
+        }
+
+        if (organizations.some(org => org.name.toLowerCase() === name.trim().toLowerCase())) {
+            toast({
+                variant: "destructive",
+                title: "Organization name exists",
+                description: "An organization with this name already exists. Please choose a different name.",
+            });
+            setIsCreating(false);
             return;
         }
 
         const newOrg: Organization = {
             id: `org-${Date.now()}`,
-            name,
+            name: name.trim(),
             description: 'Your first organization',
             type: 'Client',
             subscribers: 1, // Starts with 1 default user
@@ -113,8 +128,8 @@ export default function NewOrganizationPage() {
                 </div>
 
                 <div className="mt-16 flex justify-end">
-                     <Button onClick={handleCreate} size="lg">
-                        Next &gt;
+                     <Button onClick={handleCreate} size="lg" disabled={isCreating}>
+                        {isCreating ? 'Creating...' : 'Next >'}
                     </Button>
                 </div>
            </div>

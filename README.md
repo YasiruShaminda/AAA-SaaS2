@@ -1,3 +1,5 @@
-Monyfi AAA SaaS
+# Firebase Studio
 
-<img width="559" height="208" alt="Monyfi-W-C" src="https://github.com/user-attachments/assets/5748e54a-8577-4eaf-8f48-4c9303c0b987" />
+This is a NextJS starter in Firebase Studio.
+
+To get started, take a look at src/app/page.tsx.
