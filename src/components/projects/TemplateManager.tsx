@@ -13,6 +13,8 @@ export type ProfileTemplate = {
     name: string;
     type: 'folder' | 'template';
     attributes?: {
+        authEnabled?: boolean;
+        acctEnabled?: boolean;
         checkAttributes?: string[];
         replyAttributes?: string[];
         vendorAttributes?: string[];

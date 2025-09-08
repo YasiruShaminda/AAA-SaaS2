@@ -20,7 +20,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { TemplateManagerDialog, type ProfileTemplate } from '@/components/projects/TemplateManager';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAsgardeo } from '@asgardeo/nextjs';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { PreviewAnimation } from '@/components/projects/PreviewAnimation';
@@ -64,7 +64,7 @@ const allRadiusAttributes = [
 // Project Editor Component
 function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBack, subscriberGroups }: { project: Project, onUpdate: (project: Project) => void, onSave: () => void, onDelete: () => void, onDuplicate: () => void, onBack: () => void, subscriberGroups: string[] }) {
     const router = useRouter();
-    const { user } = useAuth();
+    const { user } = useAsgardeo();
     const [showSecret, setShowSecret] = useState(false);
     const [editedHeader, setEditedHeader] = useState({ name: project.name, description: project.description });
     const [isEditHeaderOpen, setIsEditHeaderOpen] = useState(false);
@@ -428,7 +428,7 @@ function AttributeEditor({ attributes, type, onToggle, onRemove, isDisabled }: {
 // Main Page Component
 export default function ProjectsPage() {
     const { projects, setProjects, groups } = useOrganization();
-    const { user } = useAuth();
+    const { user } = useAsgardeo();
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
     const [isBlinking, setIsBlinking] = useState(false);
 

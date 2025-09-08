@@ -8,7 +8,7 @@ import { useOrganization } from "@/contexts/OrganizationContext";
 import { PlusCircle, Building, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Skeleton } from '@/components/ui/skeleton';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAsgardeo } from '@asgardeo/nextjs';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -19,7 +19,7 @@ import type { Organization } from '@/contexts/OrganizationContext';
 
 export default function OrganizationsPage() {
     const { organizations, selectOrganization, isLoaded, addOrganization } = useOrganization();
-    const { user } = useAuth();
+    const { user } = useAsgardeo();
     const router = useRouter();
     const [isFirstLogin, setIsFirstLogin] = useState(false);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);

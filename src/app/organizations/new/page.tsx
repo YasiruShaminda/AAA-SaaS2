@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useOrganization } from "@/contexts/OrganizationContext";
 import type { Organization } from "@/contexts/OrganizationContext";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAsgardeo } from "@asgardeo/nextjs";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -17,7 +17,7 @@ import { LogOut, User as UserIcon } from "lucide-react";
 
 export default function NewOrganizationPage() {
     const { addOrganization, addDefaultDataForNewOrg, organizations, selectOrganization } = useOrganization();
-    const { user, logout } = useAuth();
+    const { user, signOut } = useAsgardeo();
     const router = useRouter();
     const { toast } = useToast();
     const [name, setName] = useState('');
@@ -102,7 +102,7 @@ export default function NewOrganizationPage() {
                         </Avatar>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
-                        <DropdownMenuItem onClick={logout}>
+                        <DropdownMenuItem onClick={() => signOut()}>
                             <LogOut className="mr-2" />
                             Logout
                         </DropdownMenuItem>

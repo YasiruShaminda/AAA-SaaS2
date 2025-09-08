@@ -3,12 +3,23 @@
 
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { User, Bell } from 'lucide-react';
+import { Bell } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import logo from '@/components/icons/logo.png';
 import Link from 'next/link';
+import { useAsgardeo } from '@asgardeo/nextjs';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { User as UserIcon, LogOut } from 'lucide-react';
 
 const pageTitles: { [key: string]: string } = {
   '/': 'Dashboard',
@@ -31,6 +42,7 @@ export function AppHeader() {
   const pathname = usePathname();
   const { selectedOrganization } = useOrganization();
   const title = pageTitles[pathname] || 'Monyfi SaaS';
+  const { user, signOut } = useAsgardeo();
 
   return (
     <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between border-b bg-background/80 px-4 backdrop-blur-md sm:px-6">
@@ -52,12 +64,24 @@ export function AppHeader() {
           <Bell className="h-5 w-5" />
           <span className="sr-only">Notifications</span>
         </Button>
-        <Button variant="ghost" size="icon" className="rounded-full" asChild>
-          <Link href="/profile">
-            <User className="h-5 w-5" />
-            <span className="sr-only">User Profile</span>
-          </Link>
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Avatar className="cursor-pointer">
+              <AvatarImage src={user?.profileUrl} alt="User Profile Picture" />
+              <AvatarFallback>
+                  <UserIcon className="h-6 w-6" />
+              </AvatarFallback>
+            </Avatar>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuLabel>{user?.displayName}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => signOut()}>
+                <LogOut className="mr-2" />
+                Logout
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );

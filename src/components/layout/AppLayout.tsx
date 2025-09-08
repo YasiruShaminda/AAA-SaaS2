@@ -11,12 +11,12 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '../ui/button';
 import { PlusCircle } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAsgardeo } from '@asgardeo/nextjs';
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isLoaded: isAuthLoaded } = useAuth();
+  const { user, isLoading, signIn } = useAsgardeo();
   const { selectedOrganization, isLoaded: isOrgLoaded } = useOrganization();
 
   const unprotectedRoutes = ['/login'];
@@ -26,24 +26,24 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   // Onboarding flow: if no organization is selected, redirect to the organization page
   // unless we are already on an unprotected page.
   useEffect(() => {
-    if (isAuthLoaded && !user && !isUnprotected) {
+    if (!isLoading && !user && !isUnprotected) {
       router.push('/login');
     }
 
-    if (isAuthLoaded && user && isOrgLoaded && !selectedOrganization && !isOrgSetup) {
-      const userOrgs = JSON.parse(localStorage.getItem(`organizations_${user.name}`) || '[]');
+    if (!isLoading && user && isOrgLoaded && !selectedOrganization && !isOrgSetup) {
+      const userOrgs = JSON.parse(localStorage.getItem(`organizations_${user.username}`) || '[]');
       if (userOrgs.length > 0) {
         router.push('/organizations');
       } else {
         router.push('/organizations/new');
       }
     }
-  }, [isAuthLoaded, user, isOrgLoaded, selectedOrganization, pathname, router, isUnprotected, isOrgSetup]);
+  }, [isLoading, user, isOrgLoaded, selectedOrganization, pathname, router, isUnprotected, isOrgSetup]);
 
 
   const renderContent = () => {
-    const isLoading = !isAuthLoaded || (user && !isOrgLoaded);
-    if (isLoading && !isUnprotected) {
+    const isPageLoading = isLoading || (user && !isOrgLoaded);
+    if (isPageLoading && !isUnprotected) {
       return <PageLoader />;
     }
     
