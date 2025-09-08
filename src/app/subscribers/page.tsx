@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useOrganization, type Subscriber, type Product, type Group } from '@/contexts/OrganizationContext';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAsgardeo } from '@asgardeo/nextjs';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
@@ -29,7 +29,7 @@ export default function SubscribersPage() {
         setProducts, 
         setGroups
     } = useOrganization();
-    const { user } = useAuth();
+    const { user } = useAsgardeo();
     const router = useRouter();
 
     const [showPassword, setShowPassword] = useState(false);

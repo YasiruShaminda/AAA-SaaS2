@@ -3,7 +3,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { useAuth } from './AuthContext';
+import { useAsgardeo } from '@asgardeo/nextjs';
 import type { Project } from '@/app/projects/page';
 
 export type Organization = {
@@ -133,7 +133,7 @@ const initialProjects: Project[] = [
 const OrganizationContext = createContext<OrganizationContextType | undefined>(undefined);
 
 export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
-    const { user } = useAuth();
+    const { user } = useAsgardeo();
     const [organizations, setOrganizations] = useState<Organization[]>([]);
     const [selectedOrganization, setSelectedOrganization] = useState<Organization | null>(null);
     const [isLoaded, setIsLoaded] = useState(false);
@@ -184,7 +184,7 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
 
     useEffect(() => {
         if (user) {
-            loadDataForUser(user.name);
+            loadDataForUser(user.username);
         } else {
             // No user logged in, clear all data
             setOrganizations([]);
@@ -198,32 +198,32 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
     }, [user, loadDataForUser]);
 
     useEffect(() => {
-        if (user) saveDataForUser(user.name, 'organizations', organizations);
+        if (user) saveDataForUser(user.username, 'organizations', organizations);
     }, [organizations, user, saveDataForUser]);
 
     useEffect(() => {
-        if (user) saveDataForUser(user.name, 'subscribers', subscribers);
+        if (user) saveDataForUser(user.username, 'subscribers', subscribers);
     }, [subscribers, user, saveDataForUser]);
     
     useEffect(() => {
-        if (user) saveDataForUser(user.name, 'products', products);
+        if (user) saveDataForUser(user.username, 'products', products);
     }, [products, user, saveDataForUser]);
 
     useEffect(() => {
-        if (user) saveDataForUser(user.name, 'groups', groups);
+        if (user) saveDataForUser(user.username, 'groups', groups);
     }, [groups, user, saveDataForUser]);
 
     useEffect(() => {
-        if (user) saveDataForUser(user.name, 'projects', projects);
+        if (user) saveDataForUser(user.username, 'projects', projects);
     }, [projects, user, saveDataForUser]);
 
 
     const selectOrganization = (organization: Organization | null, onSelect?: () => void) => {
         setSelectedOrganization(organization);
         if (organization && user) {
-            localStorage.setItem(`selectedOrganizationId_${user.name}`, organization.id);
+            localStorage.setItem(`selectedOrganizationId_${user.username}`, organization.id);
         } else if (user) {
-            localStorage.removeItem(`selectedOrganizationId_${user.name}`);
+            localStorage.removeItem(`selectedOrganizationId_${user.username}`);
         }
         
         // The callback ensures that any subsequent action (like a redirect)
