@@ -4,50 +4,46 @@
 import React, { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { SidebarProvider, Sidebar, SidebarInset, SidebarRail } from '@/components/ui/sidebar';
-import dynamic from 'next/dynamic';
-
-const AppSidebar = dynamic(() => import('@/components/layout/AppSidebar').then(mod => mod.AppSidebar), {
-  ssr: false,
-});
+import { AppSidebar } from '@/components/layout/AppSidebar';
 import { AppHeader } from './AppHeader';
 import { PageLoader } from './PageLoader';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '../ui/button';
 import { PlusCircle } from 'lucide-react';
-import { useAsgardeo } from '@asgardeo/nextjs';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isLoading, signIn } = useAsgardeo();
+  const { user, isLoaded: isAuthLoaded } = useAuth();
   const { selectedOrganization, isLoaded: isOrgLoaded } = useOrganization();
 
-  const unprotectedRoutes = ['/login'];
+  const unprotectedRoutes = ['/login', '/register', '/verify-email'];
   const isUnprotected = unprotectedRoutes.includes(pathname);
   const isOrgSetup = pathname.startsWith('/organizations');
 
   // Onboarding flow: if no organization is selected, redirect to the organization page
   // unless we are already on an unprotected page.
   useEffect(() => {
-    if (!isLoading && !user && !isUnprotected) {
+    if (isAuthLoaded && !user && !isUnprotected) {
       router.push('/login');
     }
 
-    if (!isLoading && user && isOrgLoaded && !selectedOrganization && !isOrgSetup) {
-      const userOrgs = JSON.parse(localStorage.getItem(`organizations_${user.username}`) || '[]');
+    if (isAuthLoaded && user && isOrgLoaded && !selectedOrganization && !isOrgSetup) {
+      const userOrgs = JSON.parse(localStorage.getItem(`organizations_${user.name}`) || '[]');
       if (userOrgs.length > 0) {
         router.push('/organizations');
       } else {
         router.push('/organizations/new');
       }
     }
-  }, [isLoading, user, isOrgLoaded, selectedOrganization, pathname, router, isUnprotected, isOrgSetup]);
+  }, [isAuthLoaded, user, isOrgLoaded, selectedOrganization, pathname, router, isUnprotected, isOrgSetup]);
 
 
   const renderContent = () => {
-    const isPageLoading = isLoading || (user && !isOrgLoaded);
-    if (isPageLoading && !isUnprotected) {
+    const isLoading = !isAuthLoaded || (user && !isOrgLoaded);
+    if (isLoading && !isUnprotected) {
       return <PageLoader />;
     }
     
