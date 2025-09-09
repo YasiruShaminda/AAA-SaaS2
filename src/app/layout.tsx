@@ -6,7 +6,9 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Suspense } from 'react';
 import { PageLoader } from '@/components/layout/PageLoader';
 import { OrganizationProvider } from '@/contexts/OrganizationContext';
-import { AsgardeoProviderWithNoSSR } from "@/components/auth/AsgardeoProviderWithNoSSR";
+import { AsgardeoProvider } from '@asgardeo/nextjs/server';
+
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Monyfi SaaS',
@@ -28,13 +30,13 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <Suspense fallback={<PageLoader />}>
-          <AsgardeoProviderWithNoSSR>
+          <AsgardeoProvider>
             <OrganizationProvider>
                 <AppLayout>
                   {children}
                 </AppLayout>
             </OrganizationProvider>
-          </AsgardeoProviderWithNoSSR>
+          </AsgardeoProvider>
         </Suspense>
         <Toaster />
       </body>
