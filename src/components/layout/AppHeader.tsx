@@ -1,36 +1,12 @@
-
-'use client';
-
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { User, Bell } from 'lucide-react';
-import { usePathname } from 'next/navigation';
+import { Bell } from 'lucide-react';
 import Image from 'next/image';
-import { useOrganization } from '@/contexts/OrganizationContext';
 import logo from '@/components/icons/logo.png';
-import Link from 'next/link';
+import { AuthButton } from '@/components/auth/auth-button';
 
-const pageTitles: { [key: string]: string } = {
-  '/': 'Dashboard',
-  '/workflows': 'Workflow Designer',
-  '/vendors': 'Vendor Profiles',
-  '/sessions': 'Active Sessions',
-  '/subscribers': 'Subscribers',
-  '/clients': 'Client Management',
-  '/database': 'Database Management',
-  '/subscription': 'Subscription',
-  '/testing': 'Workflow Tester',
-  '/projects': 'Projects',
-  '/settings': 'Settings',
-  '/organizations': 'Organizations',
-  '/organizations/new': 'Create Organization',
-  '/profile': 'User Profile',
-};
-
-export function AppHeader() {
-  const pathname = usePathname();
-  const { selectedOrganization } = useOrganization();
-  const title = pageTitles[pathname] || 'Monyfi SaaS';
+export async function AppHeader() {
+  const title = 'Monyfi SaaS';
 
   return (
     <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between border-b bg-background/80 px-4 backdrop-blur-md sm:px-6">
@@ -52,12 +28,7 @@ export function AppHeader() {
           <Bell className="h-5 w-5" />
           <span className="sr-only">Notifications</span>
         </Button>
-        <Button variant="ghost" size="icon" className="rounded-full" asChild>
-          <Link href="/profile">
-            <User className="h-5 w-5" />
-            <span className="sr-only">User Profile</span>
-          </Link>
-        </Button>
+        <AuthButton />
       </div>
     </header>
   );

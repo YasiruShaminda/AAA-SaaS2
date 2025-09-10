@@ -6,7 +6,6 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Suspense } from 'react';
 import { PageLoader } from '@/components/layout/PageLoader';
 import { OrganizationProvider } from '@/contexts/OrganizationContext';
-import { AuthProvider } from '@/contexts/AuthContext';
 
 export const metadata: Metadata = {
   title: 'Monyfi SaaS',
@@ -28,13 +27,11 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <Suspense fallback={<PageLoader />}>
-          <AuthProvider>
-            <OrganizationProvider>
-                <AppLayout>
-                  {children}
-                </AppLayout>
-            </OrganizationProvider>
-          </AuthProvider>
+          <OrganizationProvider>
+              <AppLayout>
+                {children}
+              </AppLayout>
+          </OrganizationProvider>
         </Suspense>
         <Toaster />
       </body>

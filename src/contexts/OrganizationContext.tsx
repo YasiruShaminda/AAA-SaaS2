@@ -3,7 +3,6 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { useAuth } from './AuthContext';
 import type { Project } from '@/app/projects/page';
 
 export type Organization = {
@@ -133,97 +132,23 @@ const initialProjects: Project[] = [
 const OrganizationContext = createContext<OrganizationContextType | undefined>(undefined);
 
 export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
-    const { user } = useAuth();
-    const [organizations, setOrganizations] = useState<Organization[]>([]);
+    const [organizations, setOrganizations] = useState<Organization[]>(sampleOrganizations);
     const [selectedOrganization, setSelectedOrganization] = useState<Organization | null>(null);
-    const [isLoaded, setIsLoaded] = useState(false);
+    const [isLoaded, setIsLoaded] = useState(true);
     
     // Data states
-    const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
-    const [products, setProducts] = useState<Product[]>([]);
-    const [groups, setGroups] = useState<Group[]>([]);
-    const [projects, setProjects] = useState<Project[]>([]);
+    const [subscribers, setSubscribers] = useState<Subscriber[]>(sampleSubscribers);
+    const [products, setProducts] = useState<Product[]>(sampleProducts);
+    const [groups, setGroups] = useState<Group[]>(sampleGroups);
+    const [projects, setProjects] = useState<Project[]>(initialProjects);
     const [profiles, setProfiles] = useState<Profile[]>(sampleProfiles);
-
-    const loadDataForUser = useCallback((username: string) => {
-        console.log(`Loading data for ${username}`);
-        const storedOrgs = localStorage.getItem(`organizations_${username}`);
-        const orgs = storedOrgs ? JSON.parse(storedOrgs) : (username === 'Admin' ? sampleOrganizations : []);
-        setOrganizations(orgs);
-        
-        const storedSubscribers = localStorage.getItem(`subscribers_${username}`);
-        setSubscribers(storedSubscribers ? JSON.parse(storedSubscribers) : (username === 'Admin' ? sampleSubscribers : []));
-
-        const storedProducts = localStorage.getItem(`products_${username}`);
-        setProducts(storedProducts ? JSON.parse(storedProducts) : (username === 'Admin' ? sampleProducts : []));
-        
-        const storedGroups = localStorage.getItem(`groups_${username}`);
-        setGroups(storedGroups ? JSON.parse(storedGroups) : (username === 'Admin' ? sampleGroups : []));
-        
-        const storedProjects = localStorage.getItem(`projects_${username}`);
-        setProjects(storedProjects ? JSON.parse(storedProjects) : (username === 'Admin' ? initialProjects : []));
-
-        if (orgs.length > 0) {
-            const storedSelectedOrgId = localStorage.getItem(`selectedOrganizationId_${username}`);
-            if (storedSelectedOrgId) {
-                const org = orgs.find((o: Organization) => o.id === storedSelectedOrgId) || orgs[0];
-                setSelectedOrganization(org);
-            } else {
-                setSelectedOrganization(null);
-            }
-        } else {
-            setSelectedOrganization(null);
-        }
-        setIsLoaded(true);
-
-    }, []);
-
-    const saveDataForUser = useCallback((username: string, dataType: string, data: any) => {
-        localStorage.setItem(`${dataType}_${username}`, JSON.stringify(data));
-    }, []);
-
-    useEffect(() => {
-        if (user) {
-            loadDataForUser(user.name);
-        } else {
-            // No user logged in, clear all data
-            setOrganizations([]);
-            setSelectedOrganization(null);
-            setSubscribers([]);
-            setProducts([]);
-            setGroups([]);
-            setProjects([]);
-            setIsLoaded(true);
-        }
-    }, [user, loadDataForUser]);
-
-    useEffect(() => {
-        if (user) saveDataForUser(user.name, 'organizations', organizations);
-    }, [organizations, user, saveDataForUser]);
-
-    useEffect(() => {
-        if (user) saveDataForUser(user.name, 'subscribers', subscribers);
-    }, [subscribers, user, saveDataForUser]);
-    
-    useEffect(() => {
-        if (user) saveDataForUser(user.name, 'products', products);
-    }, [products, user, saveDataForUser]);
-
-    useEffect(() => {
-        if (user) saveDataForUser(user.name, 'groups', groups);
-    }, [groups, user, saveDataForUser]);
-
-    useEffect(() => {
-        if (user) saveDataForUser(user.name, 'projects', projects);
-    }, [projects, user, saveDataForUser]);
-
 
     const selectOrganization = (organization: Organization | null, onSelect?: () => void) => {
         setSelectedOrganization(organization);
-        if (organization && user) {
-            localStorage.setItem(`selectedOrganizationId_${user.name}`, organization.id);
-        } else if (user) {
-            localStorage.removeItem(`selectedOrganizationId_${user.name}`);
+        if (organization) {
+            localStorage.setItem(`selectedOrganizationId_Admin`, organization.id);
+        } else {
+            localStorage.removeItem(`selectedOrganizationId_Admin`);
         }
         
         // The callback ensures that any subsequent action (like a redirect)
