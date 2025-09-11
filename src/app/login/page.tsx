@@ -62,19 +62,19 @@ export default function LoginPage() {
                            <Waypoints className="size-8 text-primary" />
                         </div>
                         <CardTitle className="font-headline text-3xl">Access Terminal</CardTitle>
-                        <CardDescription>Monify SaaS Authentication</CardDescription>
+                        <CardDescription>Monify AAA Authentication</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <Form {...form}>
                             <form onSubmit={form.handleSubmit(handleLogin)} className="space-y-4">
                                 <FormField
                                     control={form.control}
-                                    name="username"
+                                    name="email"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Username</FormLabel>
+                                            <FormLabel>Email</FormLabel>
                                             <FormControl>
-                                                <Input placeholder="Enter your callsign" {...field} />
+                                                <Input placeholder="Enter your email" {...field} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -101,9 +101,6 @@ export default function LoginPage() {
                         </Form>
                     </CardContent>
                     <CardFooter className="flex flex-col gap-4">
-                       <p className="text-sm text-muted-foreground">
-                            Use `admin`/`admin` for existing user or `user`/`user` for new user flow.
-                        </p>
                         <p className="text-sm text-muted-foreground">
                             No account? <Link href="/register" className="text-primary hover:underline">Register here</Link>
                         </p>
