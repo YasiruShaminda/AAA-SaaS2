@@ -56,8 +56,8 @@ const OrganizationRow = ({ org, onSelect, onAfterDelete }: { org: Organization, 
         }
     };
 
-    const handleDelete = () => {
-        deleteOrganization(org.id);
+    const handleDelete = async () => {
+        await deleteOrganization(org.id);
         onAfterDelete();
     }
 

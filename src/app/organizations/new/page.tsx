@@ -31,7 +31,7 @@ export default function NewOrganizationPage() {
     }, [user, router, organizations]);
 
 
-    const handleCreate = () => {
+    const handleCreate = async () => {
         if (isCreating) return;
         setIsCreating(true);
 
@@ -55,30 +55,34 @@ export default function NewOrganizationPage() {
             return;
         }
 
-        const newOrg: Organization = {
-            id: `org-${Date.now()}`,
+        const newOrgData: Partial<Organization> = {
             name: name.trim(),
             description: 'Your first organization',
-            type: 'Client',
-            subscribers: 1, // Starts with 1 default user
-            status: 'Trial',
         };
         
-        // Add the organization but don't auto-select yet. We will do it manually.
-        addOrganization(newOrg, false); 
+        const newOrg = await addOrganization(newOrgData as Organization, false);
         
-        // This logic runs for the very first organization created by a user.
-        if (user && organizations.length === 0) {
-            addDefaultDataForNewOrg();
-            // Set flags to trigger onboarding hints on the subscribers page.
-            localStorage.setItem(`onboarding_show_groups_hint_${user.name}`, 'true');
-        }
+        if (newOrg) {
+            // This logic runs for the very first organization created by a user.
+            if (user && organizations.length === 0) {
+                addDefaultDataForNewOrg();
+                // Set flags to trigger onboarding hints on the subscribers page.
+                localStorage.setItem(`onboarding_show_groups_hint_${user.name}`, 'true');
+            }
 
-        // Manually select the new org. The callback ensures the redirect
-        // happens only after the state has been successfully updated.
-        selectOrganization(newOrg, () => {
-            router.push('/subscribers');
-        });
+            // Manually select the new org. The callback ensures the redirect
+            // happens only after the state has been successfully updated.
+            selectOrganization(newOrg, () => {
+                router.push('/subscribers');
+            });
+        } else {
+            setIsCreating(false);
+            toast({
+                variant: "destructive",
+                title: "Failed to create organization",
+                description: "An unexpected error occurred. Please try again.",
+            });
+        }
     };
     
     if (!user) {

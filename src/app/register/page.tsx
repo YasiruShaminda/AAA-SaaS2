@@ -38,9 +38,9 @@ export default function RegisterPage() {
         },
     });
 
-    const handleRegister = (values: z.infer<typeof formSchema>) => {
+    const handleRegister = async (values: z.infer<typeof formSchema>) => {
         try {
-            register(values.username, values.email, values.password);
+            await register(values.username, values.email, values.password);
             toast({
                 title: "Registration Successful",
                 description: "Please check your email to verify your account.",

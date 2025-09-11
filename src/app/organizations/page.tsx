@@ -59,7 +59,7 @@ export default function OrganizationsPage() {
         });
     }
     
-     const handleAddNewOrg = () => {
+     const handleAddNewOrg = async () => {
         if (!newOrgName.trim()) {
             toast({
                 variant: "destructive",
@@ -78,19 +78,18 @@ export default function OrganizationsPage() {
             return;
         }
 
-        const newOrg: Organization = {
-            id: `org-${Date.now()}`,
+        const newOrgData = {
             name: newOrgName.trim(),
             description: newOrgDesc,
-            type: 'Client',
-            subscribers: 0,
-            status: 'Trial',
         };
 
-        addOrganization(newOrg, false);
-        selectOrganization(newOrg, () => {
-            router.push('/subscribers');
-        });
+        const newOrg = await addOrganization(newOrgData as Organization, false);
+
+        if (newOrg) {
+            selectOrganization(newOrg, () => {
+                router.push('/subscribers');
+            });
+        }
 
         setNewOrgName('');
         setNewOrgDesc('');

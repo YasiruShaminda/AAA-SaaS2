@@ -35,20 +35,11 @@ export default function LoginPage() {
         },
     });
 
-    const handleLogin = (values: z.infer<typeof formSchema>) => {
-        const result = login(values.username, values.password);
+    const handleLogin = async (values: z.infer<typeof formSchema>) => {
+        const result = await login(values.username, values.password);
 
         if (result && result.isVerified) {
-             // The OrganizationContext will reload data based on the new user.
-             // We need to give it a moment to load the user's orgs before checking.
-            setTimeout(() => {
-                const userOrgs = JSON.parse(localStorage.getItem(`organizations_${result.user.name}`) || '[]');
-                if (userOrgs.length === 0) {
-                    router.push('/organizations/new');
-                } else {
-                    router.push('/organizations');
-                }
-            }, 100);
+            router.push('/organizations');
         } else if (result && !result.isVerified) {
             router.push('/verify-email');
         }

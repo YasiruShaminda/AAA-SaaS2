@@ -25,9 +25,14 @@ export default function SubscribersPage() {
         products, 
         groups, 
         profiles,
-        setSubscribers, 
-        setProducts, 
-        setGroups
+        addSubscriber,
+        // updateSubscriber,
+        deleteSubscriber,
+        addProduct,
+        deleteProduct,
+        addGroup,
+        deleteGroup,
+        isOrgDataLoaded
     } = useOrganization();
     const { user } = useAuth();
     const router = useRouter();
@@ -122,47 +127,7 @@ export default function SubscribersPage() {
                                         <DialogTrigger asChild>
                                             <Button><PlusCircle className="mr-2" /> Add Subscriber</Button>
                                         </DialogTrigger>
-                                        <DialogContent>
-                                            <DialogHeader>
-                                                <DialogTitle>Add New Subscriber</DialogTitle>
-                                                <DialogDescription>Enter the details for the new subscriber.</DialogDescription>
-                                            </DialogHeader>
-                                            <div className="grid gap-4 py-4">
-                                                <div className="grid grid-cols-4 items-center gap-4">
-                                                    <Label htmlFor="s-username" className="text-right">Username</Label>
-                                                    <Input id="s-username" className="col-span-3" />
-                                                </div>
-                                                <div className="grid grid-cols-4 items-center gap-4">
-                                                    <Label htmlFor="s-fullname" className="text-right">Full Name</Label>
-                                                    <Input id="s-fullname" className="col-span-3" />
-                                                </div>
-                                                <div className="grid grid-cols-4 items-center gap-4">
-                                                    <Label htmlFor="s-password" className="text-right">Password</Label>
-                                                    <Input id="s-password" type="password" className="col-span-3" />
-                                                </div>
-                                                <div className="grid grid-cols-4 items-center gap-4">
-                                                    <Label htmlFor="s-product" className="text-right">Product</Label>
-                                                    <Select>
-                                                        <SelectTrigger className="col-span-3"><SelectValue placeholder="Select a product" /></SelectTrigger>
-                                                        <SelectContent>
-                                                            {products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                                <div className="grid grid-cols-4 items-center gap-4">
-                                                    <Label htmlFor="s-group" className="text-right">Group</Label>
-                                                    <Select>
-                                                        <SelectTrigger className="col-span-3"><SelectValue placeholder="Select a group" /></SelectTrigger>
-                                                        <SelectContent>
-                                                            {groups.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                            </div>
-                                            <DialogFooter>
-                                                <Button type="submit">Save Subscriber</Button>
-                                            </DialogFooter>
-                                        </DialogContent>
+                                        <AddSubscriberDialog />
                                     </Dialog>
                                 </div>
                             </div>
@@ -188,7 +153,15 @@ export default function SubscribersPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {subscribers.map((subscriber) => (
+                                        {!isOrgDataLoaded ? (
+                                            [...Array(5)].map((_, i) => (
+                                                <TableRow key={i}>
+                                                    <TableCell colSpan={7} className="p-0">
+                                                        <div className="w-full h-12 bg-muted/50 animate-pulse" />
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        ) : subscribers.map((subscriber) => (
                                             <TableRow key={subscriber.id}>
                                                 <TableCell className="font-medium">{subscriber.username}</TableCell>
                                                 <TableCell>{showPassword ? subscriber.pass : '********'}</TableCell>
@@ -205,7 +178,23 @@ export default function SubscribersPage() {
                                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal /></Button></DropdownMenuTrigger>
                                                         <DropdownMenuContent>
                                                             <DropdownMenuItem><Pencil className="mr-2" /> Edit</DropdownMenuItem>
-                                                            <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2" /> Delete</DropdownMenuItem>
+                                                            <AlertDialog>
+                                                                <AlertDialogTrigger asChild>
+                                                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2" /> Delete</DropdownMenuItem>
+                                                                </AlertDialogTrigger>
+                                                                <AlertDialogContent>
+                                                                    <AlertDialogHeader>
+                                                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                                        <AlertDialogDescription>
+                                                                            This will permanently delete the subscriber "{subscriber.username}".
+                                                                        </AlertDialogDescription>
+                                                                    </AlertDialogHeader>
+                                                                    <AlertDialogFooter>
+                                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                        <AlertDialogAction onClick={() => deleteSubscriber(subscriber.id)}>Delete</AlertDialogAction>
+                                                                    </AlertDialogFooter>
+                                                                </AlertDialogContent>
+                                                            </AlertDialog>
                                                         </DropdownMenuContent>
                                                     </DropdownMenu>
                                                 </TableCell>
@@ -269,33 +258,7 @@ export default function SubscribersPage() {
                                     <DialogTrigger asChild>
                                         <Button><PlusCircle className="mr-2" /> Add Product</Button>
                                     </DialogTrigger>
-                                    <DialogContent>
-                                        <DialogHeader>
-                                            <DialogTitle>Add New Product</DialogTitle>
-                                            <DialogDescription>Define a new subscriber plan or product.</DialogDescription>
-                                        </DialogHeader>
-                                        <div className="grid gap-4 py-4">
-                                            <div className="grid grid-cols-4 items-center gap-4">
-                                                <Label htmlFor="p-name" className="text-right">Name</Label>
-                                                <Input id="p-name" placeholder="e.g. Premium" className="col-span-3" />
-                                            </div>
-                                            <div className="grid grid-cols-4 items-center gap-4">
-                                                <Label htmlFor="p-bw-up" className="text-right">Bandwidth Up</Label>
-                                                <Input id="p-bw-up" placeholder="e.g. 50 Mbps" className="col-span-3" />
-                                            </div>
-                                            <div className="grid grid-cols-4 items-center gap-4">
-                                                <Label htmlFor="p-bw-down" className="text-right">Bandwidth Down</Label>
-                                                <Input id="p-bw-down" placeholder="e.g. 250 Mbps" className="col-span-3" />
-                                            </div>
-                                            <div className="grid grid-cols-4 items-center gap-4">
-                                                <Label htmlFor="p-session" className="text-right">Session Limit</Label>
-                                                <Input id="p-session" placeholder="e.g. 72h" className="col-span-3" />
-                                            </div>
-                                        </div>
-                                        <DialogFooter>
-                                            <Button type="submit">Save Product</Button>
-                                        </DialogFooter>
-                                    </DialogContent>
+                                    <AddProductDialog />
                                 </Dialog>
                             </div>
                         </CardHeader>
@@ -312,7 +275,15 @@ export default function SubscribersPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {products.map(product => (
+                                    {!isOrgDataLoaded ? (
+                                        [...Array(3)].map((_, i) => (
+                                            <TableRow key={i}>
+                                                <TableCell colSpan={6} className="p-0">
+                                                    <div className="w-full h-12 bg-muted/50 animate-pulse" />
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : products.map(product => (
                                         <TableRow key={product.id}>
                                             <TableCell className="font-medium">{product.name}</TableCell>
                                             <TableCell>{product.bandwidthUp}</TableCell>
@@ -324,7 +295,23 @@ export default function SubscribersPage() {
                                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal /></Button></DropdownMenuTrigger>
                                                     <DropdownMenuContent>
                                                         <DropdownMenuItem><Pencil className="mr-2" /> Edit</DropdownMenuItem>
-                                                        <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2" /> Delete</DropdownMenuItem>
+                                                        <AlertDialog>
+                                                            <AlertDialogTrigger asChild>
+                                                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2" /> Delete</DropdownMenuItem>
+                                                            </AlertDialogTrigger>
+                                                            <AlertDialogContent>
+                                                                <AlertDialogHeader>
+                                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                                    <AlertDialogDescription>
+                                                                        This will permanently delete the product "{product.name}".
+                                                                    </AlertDialogDescription>
+                                                                </AlertDialogHeader>
+                                                                <AlertDialogFooter>
+                                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                    <AlertDialogAction onClick={() => deleteProduct(product.id)}>Delete</AlertDialogAction>
+                                                                </AlertDialogFooter>
+                                                            </AlertDialogContent>
+                                                        </AlertDialog>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             </TableCell>
@@ -347,34 +334,7 @@ export default function SubscribersPage() {
                                     <DialogTrigger asChild>
                                         <Button><PlusCircle className="mr-2" /> Add Group</Button>
                                     </DialogTrigger>
-                                    <DialogContent>
-                                        <DialogHeader>
-                                            <DialogTitle>Add New Group</DialogTitle>
-                                            <DialogDescription>Create a new group to organize subscribers.</DialogDescription>
-                                        </DialogHeader>
-                                        <div className="grid gap-4 py-4">
-                                            <div className="grid grid-cols-4 items-center gap-4">
-                                                <Label htmlFor="g-name" className="text-right">Name</Label>
-                                                <Input id="g-name" placeholder="e.g. Enterprise" className="col-span-3" />
-                                            </div>
-                                            <div className="grid grid-cols-4 items-center gap-4">
-                                                <Label htmlFor="g-desc" className="text-right">Description</Label>
-                                                <Input id="g-desc" placeholder="e.g. Corporate users" className="col-span-3" />
-                                            </div>
-                                            <div className="grid grid-cols-4 items-center gap-4">
-                                                <Label htmlFor="g-profile" className="text-right">RADIUS Profile</Label>
-                                                <Select>
-                                                    <SelectTrigger className="col-span-3"><SelectValue placeholder="Select a profile" /></SelectTrigger>
-                                                    <SelectContent>
-                                                        {profiles.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                        </div>
-                                        <DialogFooter>
-                                            <Button type="submit">Save Group</Button>
-                                        </DialogFooter>
-                                    </DialogContent>
+                                    <AddGroupDialog />
                                 </Dialog>
                             </div>
                         </CardHeader>
@@ -390,7 +350,15 @@ export default function SubscribersPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {groups.map(group => (
+                                    {!isOrgDataLoaded ? (
+                                        [...Array(3)].map((_, i) => (
+                                            <TableRow key={i}>
+                                                <TableCell colSpan={5} className="p-0">
+                                                    <div className="w-full h-12 bg-muted/50 animate-pulse" />
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : groups.map(group => (
                                         <TableRow key={group.id}>
                                             <TableCell className="font-medium">{group.name}</TableCell>
                                             <TableCell>{group.description}</TableCell>
@@ -401,7 +369,23 @@ export default function SubscribersPage() {
                                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal /></Button></DropdownMenuTrigger>
                                                     <DropdownMenuContent>
                                                         <DropdownMenuItem><Pencil className="mr-2" /> Edit</DropdownMenuItem>
-                                                        <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2" /> Delete</DropdownMenuItem>
+                                                        <AlertDialog>
+                                                            <AlertDialogTrigger asChild>
+                                                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2" /> Delete</DropdownMenuItem>
+                                                            </AlertDialogTrigger>
+                                                            <AlertDialogContent>
+                                                                <AlertDialogHeader>
+                                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                                    <AlertDialogDescription>
+                                                                        This will permanently delete the group "{group.name}".
+                                                                    </AlertDialogDescription>
+                                                                </AlertDialogHeader>
+                                                                <AlertDialogFooter>
+                                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                    <AlertDialogAction onClick={() => deleteGroup(group.id)}>Delete</AlertDialogAction>
+                                                                </AlertDialogFooter>
+                                                            </AlertDialogContent>
+                                                        </AlertDialog>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             </TableCell>
@@ -422,6 +406,171 @@ export default function SubscribersPage() {
                 </TabsContent>
             </Tabs>
         </div>
+    );
+}
+
+function AddGroupDialog() {
+    const { addGroup, profiles } = useOrganization();
+    const [name, setName] = useState('');
+    const [description, setDescription] = useState('');
+    const [profileId, setProfileId] = useState('');
+    const [isOpen, setIsOpen] = useState(false);
+
+    const handleSubmit = async () => {
+        const groupData = {
+            name,
+            description,
+            profile: profileId,
+        };
+        await addGroup(groupData);
+        setIsOpen(false);
+    };
+
+    return (
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Add New Group</DialogTitle>
+                <DialogDescription>Create a new group to organize subscribers.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="g-name" className="text-right">Name</Label>
+                    <Input id="g-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Enterprise" className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="g-desc" className="text-right">Description</Label>
+                    <Input id="g-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g. Corporate users" className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="g-profile" className="text-right">RADIUS Profile</Label>
+                    <Select onValueChange={setProfileId}>
+                        <SelectTrigger className="col-span-3"><SelectValue placeholder="Select a profile" /></SelectTrigger>
+                        <SelectContent>
+                            {profiles.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
+            <DialogFooter>
+                <Button onClick={handleSubmit}>Save Group</Button>
+            </DialogFooter>
+        </DialogContent>
+    );
+}
+
+function AddProductDialog() {
+    const { addProduct } = useOrganization();
+    const [name, setName] = useState('');
+    const [bandwidthUp, setBandwidthUp] = useState('');
+    const [bandwidthDown, setBandwidthDown] = useState('');
+    const [sessionLimit, setSessionLimit] = useState('');
+    const [isOpen, setIsOpen] = useState(false);
+
+    const handleSubmit = async () => {
+        const productData = {
+            name,
+            bandwidthUp,
+            bandwidthDown,
+            sessionLimit,
+        };
+        await addProduct(productData);
+        setIsOpen(false);
+    };
+
+    return (
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Add New Product</DialogTitle>
+                <DialogDescription>Define a new subscriber plan or product.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="p-name" className="text-right">Name</Label>
+                    <Input id="p-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Premium" className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="p-bw-up" className="text-right">Bandwidth Up</Label>
+                    <Input id="p-bw-up" value={bandwidthUp} onChange={(e) => setBandwidthUp(e.target.value)} placeholder="e.g. 50 Mbps" className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="p-bw-down" className="text-right">Bandwidth Down</Label>
+                    <Input id="p-bw-down" value={bandwidthDown} onChange={(e) => setBandwidthDown(e.target.value)} placeholder="e.g. 250 Mbps" className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="p-session" className="text-right">Session Limit</Label>
+                    <Input id="p-session" value={sessionLimit} onChange={(e) => setSessionLimit(e.target.value)} placeholder="e.g. 72h" className="col-span-3" />
+                </div>
+            </div>
+            <DialogFooter>
+                <Button onClick={handleSubmit}>Save Product</Button>
+            </DialogFooter>
+        </DialogContent>
+    );
+}
+
+function AddSubscriberDialog() {
+    const { addSubscriber, products, groups } = useOrganization();
+    const [username, setUsername] = useState('');
+    const [fullname, setFullname] = useState('');
+    const [password, setPassword] = useState('');
+    const [productId, setProductId] = useState('');
+    const [groupId, setGroupId] = useState('');
+    const [isOpen, setIsOpen] = useState(false);
+
+    const handleSubmit = async () => {
+        const subscriberData = {
+            username,
+            fullname,
+            pass: password,
+            product_id: parseInt(productId),
+            group_id: parseInt(groupId),
+        };
+        await addSubscriber(subscriberData);
+        setIsOpen(false);
+    };
+
+    return (
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Add New Subscriber</DialogTitle>
+                <DialogDescription>Enter the details for the new subscriber.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="s-username" className="text-right">Username</Label>
+                    <Input id="s-username" value={username} onChange={(e) => setUsername(e.target.value)} className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="s-fullname" className="text-right">Full Name</Label>
+                    <Input id="s-fullname" value={fullname} onChange={(e) => setFullname(e.target.value)} className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="s-password" className="text-right">Password</Label>
+                    <Input id="s-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="s-product" className="text-right">Product</Label>
+                    <Select onValueChange={setProductId}>
+                        <SelectTrigger className="col-span-3"><SelectValue placeholder="Select a product" /></SelectTrigger>
+                        <SelectContent>
+                            {products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="s-group" className="text-right">Group</Label>
+                    <Select onValueChange={setGroupId}>
+                        <SelectTrigger className="col-span-3"><SelectValue placeholder="Select a group" /></SelectTrigger>
+                        <SelectContent>
+                            {groups.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
+            <DialogFooter>
+                <Button onClick={handleSubmit}>Save Subscriber</Button>
+            </DialogFooter>
+        </DialogContent>
     );
 }
 

@@ -1,0 +1,1494 @@
+{
+    "openapi": "3.0.0",
+    "paths": {
+      "/v1/auth/login": {
+        "post": {
+          "operationId": "AuthController_createAuthenticationToken",
+          "summary": "Login to the system by giving valid username and password",
+          "parameters": [],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginCreadentialsDto"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiResponseModel"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Authentication"
+          ]
+        }
+      },
+      "/v1/auth/refresh": {
+        "post": {
+          "operationId": "AuthController_renewAccessToken",
+          "summary": "Refresh access token using refresh token",
+          "parameters": [],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshTokenDto"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiResponseModel"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Authentication"
+          ]
+        }
+      },
+      "/v1/auth/logout": {
+        "post": {
+          "operationId": "AuthController_logout",
+          "summary": "Logout from the system",
+          "parameters": [],
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiResponseModel"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Authentication"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        }
+      },
+      "/v1/auth/user": {
+        "get": {
+          "operationId": "AuthController_getAuthUser",
+          "summary": "Get Authenticated User",
+          "parameters": [],
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiResponseModel"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Authentication"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        }
+      },
+      "/v1/user": {
+        "get": {
+          "operationId": "UsersController_getAllUsers",
+          "summary": "Get all registered users",
+          "parameters": [],
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiResponseModel"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "User Management APIs"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        }
+      },
+      "/v1/user/{id}": {
+        "get": {
+          "operationId": "UsersController_getUserById",
+          "summary": "Get registered user by id",
+          "parameters": [
+            {
+              "name": "id",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiResponseModel"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "User Management APIs"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        }
+      },
+      "/v1/user/register": {
+        "post": {
+          "operationId": "UsersController_registerUser",
+          "summary": "Register new user",
+          "parameters": [],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateUserDto"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiResponseModel"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "User Management APIs"
+          ]
+        }
+      },
+      "/v1/user/{id}/update": {
+        "patch": {
+          "operationId": "UsersController_updateUser",
+          "summary": "Update user by id",
+          "parameters": [
+            {
+              "name": "id",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateUserDto"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiResponseModel"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "User Management APIs"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        }
+      },
+      "/v1/user/{id}/delete": {
+        "delete": {
+          "operationId": "UsersController_deleteUser",
+          "summary": "Delete user by id",
+          "parameters": [
+            {
+              "name": "id",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiResponseModel"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "User Management APIs"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        }
+      },
+      "/v1/aaa/organizations": {
+        "post": {
+          "operationId": "OrganizationController_createOrganization",
+          "summary": "Create Organization",
+          "parameters": [],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateOrganizationDto"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiResponseModel"
+                  }
+                }
+              }
+            },
+            "201": {
+              "description": ""
+            }
+          },
+          "tags": [
+            "Organization Management APIs"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        },
+        "get": {
+          "operationId": "OrganizationController_findAllOrganizations",
+          "summary": "Get Organizations",
+          "parameters": [
+            {
+              "name": "owner_id",
+              "required": true,
+              "in": "query",
+              "schema": {
+                "type": "number"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": ""
+            }
+          },
+          "tags": [
+            "Organization Management APIs"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        }
+      },
+      "/v1/aaa/organizations/{id}": {
+        "get": {
+          "operationId": "OrganizationController_findOrganization",
+          "summary": "Find Organization",
+          "parameters": [
+            {
+              "name": "id",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": ""
+            }
+          },
+          "tags": [
+            "Organization Management APIs"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        },
+        "patch": {
+          "operationId": "OrganizationController_updateOrganization",
+          "summary": "Update Organization",
+          "parameters": [
+            {
+              "name": "id",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateOrganizationDto"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": ""
+            }
+          },
+          "tags": [
+            "Organization Management APIs"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        }
+      },
+      "/v1/aaa/organizations/{id}/delete": {
+        "delete": {
+          "operationId": "OrganizationController_removeOrganization",
+          "summary": "Delete Organization by id",
+          "parameters": [
+            {
+              "name": "id",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": ""
+            }
+          },
+          "tags": [
+            "Organization Management APIs"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        }
+      },
+      "/v1/aaa/organizations/{id}/members": {
+        "get": {
+          "operationId": "OrganizationController_getMembersOfOrganization",
+          "summary": "Get Members of Organization",
+          "parameters": [
+            {
+              "name": "id",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": ""
+            }
+          },
+          "tags": [
+            "Organization Management APIs"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        }
+      },
+      "/v1/aaa/{orgId}/subscribers": {
+        "post": {
+          "operationId": "SubscriberController_createSubscriber",
+          "summary": "Create a new subscriber",
+          "parameters": [
+            {
+              "name": "orgId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateSubscriberDto"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiResponseModel"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Subscriber Management"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        },
+        "get": {
+          "operationId": "SubscriberController_getSubscribers",
+          "summary": "Get all subscribers for an organization",
+          "parameters": [
+            {
+              "name": "orgId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            },
+            {
+              "name": "groupId",
+              "required": false,
+              "in": "query",
+              "schema": {
+                "type": "number"
+              }
+            },
+            {
+              "name": "page",
+              "required": false,
+              "in": "query",
+              "schema": {
+                "type": "number"
+              }
+            },
+            {
+              "name": "limit",
+              "required": false,
+              "in": "query",
+              "schema": {
+                "type": "number"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiResponseModel"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Subscriber Management"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        }
+      },
+      "/v1/aaa/{orgId}/subscribers/import": {
+        "post": {
+          "operationId": "SubscriberController_importSubscribers",
+          "summary": "Bulk import subscribers",
+          "parameters": [
+            {
+              "name": "orgId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportSubscriberDto"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiResponseModel"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Subscriber Management"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        }
+      },
+      "/v1/aaa/{orgId}/subscribers/search": {
+        "get": {
+          "operationId": "SubscriberController_searchSubscribers",
+          "summary": "Search for subscribers by username",
+          "parameters": [
+            {
+              "name": "orgId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            },
+            {
+              "name": "query",
+              "required": true,
+              "in": "query",
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "page",
+              "required": false,
+              "in": "query",
+              "schema": {
+                "type": "number"
+              }
+            },
+            {
+              "name": "limit",
+              "required": false,
+              "in": "query",
+              "schema": {
+                "type": "number"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiResponseModel"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Subscriber Management"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        }
+      },
+      "/v1/aaa/{orgId}/subscribers/{subscriberId}": {
+        "get": {
+          "operationId": "SubscriberController_getSubscriberById",
+          "summary": "Get a subscriber by ID",
+          "parameters": [
+            {
+              "name": "orgId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            },
+            {
+              "name": "subscriberId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiResponseModel"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Subscriber Management"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        },
+        "put": {
+          "operationId": "SubscriberController_updateSubscriber",
+          "summary": "Update a subscriber",
+          "parameters": [
+            {
+              "name": "orgId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            },
+            {
+              "name": "subscriberId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateSubscriberDto"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiResponseModel"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Subscriber Management"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        },
+        "delete": {
+          "operationId": "SubscriberController_deleteSubscriber",
+          "summary": "Delete a subscriber",
+          "parameters": [
+            {
+              "name": "orgId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            },
+            {
+              "name": "subscriberId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiResponseModel"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Subscriber Management"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        }
+      },
+      "/v1/aaa/{orgId}/groups": {
+        "post": {
+          "operationId": "GroupController_createGroup",
+          "summary": "Create a new group",
+          "parameters": [
+            {
+              "name": "orgId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateGroupDto"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiResponseModel"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Group Management"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        },
+        "get": {
+          "operationId": "GroupController_getGroups",
+          "summary": "Get all groups for an organization",
+          "parameters": [
+            {
+              "name": "orgId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiResponseModel"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Group Management"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        }
+      },
+      "/v1/aaa/{orgId}/groups/{groupId}": {
+        "get": {
+          "operationId": "GroupController_getGroupById",
+          "summary": "Get a group by ID",
+          "parameters": [
+            {
+              "name": "orgId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            },
+            {
+              "name": "groupId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiResponseModel"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Group Management"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        },
+        "patch": {
+          "operationId": "GroupController_updateGroup",
+          "summary": "Update a group",
+          "parameters": [
+            {
+              "name": "orgId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            },
+            {
+              "name": "groupId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateGroupDto"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiResponseModel"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Group Management"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        },
+        "delete": {
+          "operationId": "GroupController_deleteGroup",
+          "summary": "Delete a group",
+          "parameters": [
+            {
+              "name": "orgId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            },
+            {
+              "name": "groupId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiResponseModel"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Group Management"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        }
+      },
+      "/v1/aaa/{orgId}/projects": {
+        "post": {
+          "operationId": "ProjectController_createProject",
+          "summary": "Create a new project",
+          "parameters": [
+            {
+              "name": "orgId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateProjectDto"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiResponseModel"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Project Management"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        },
+        "get": {
+          "operationId": "ProjectController_getProjects",
+          "summary": "Get all projects for an organization",
+          "parameters": [
+            {
+              "name": "orgId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiResponseModel"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Project Management"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        }
+      },
+      "/v1/aaa/{orgId}/projects/{projectId}": {
+        "get": {
+          "operationId": "ProjectController_getProjectById",
+          "summary": "Get a project by ID",
+          "parameters": [
+            {
+              "name": "orgId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            },
+            {
+              "name": "projectId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiResponseModel"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Project Management"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        },
+        "put": {
+          "operationId": "ProjectController_updateProject",
+          "summary": "Update a project",
+          "parameters": [
+            {
+              "name": "orgId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            },
+            {
+              "name": "projectId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateProjectDto"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiResponseModel"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Project Management"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        },
+        "delete": {
+          "operationId": "ProjectController_deleteProject",
+          "summary": "Delete a project",
+          "parameters": [
+            {
+              "name": "orgId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            },
+            {
+              "name": "projectId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiResponseModel"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Project Management"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        }
+      },
+      "/v1/aaa/{orgId}/projects/{projectId}/test": {
+        "post": {
+          "operationId": "ProjectController_testProject",
+          "summary": "Send a test RADIUS packet",
+          "parameters": [
+            {
+              "name": "orgId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            },
+            {
+              "name": "projectId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiResponseModel"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Project Management"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        }
+      },
+      "/v1/aaa/{orgId}/projects/{projectId}/radProfile": {
+        "post": {
+          "operationId": "ProjectController_createRadProfile",
+          "summary": "Create RADIUS profile",
+          "parameters": [
+            {
+              "name": "orgId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            },
+            {
+              "name": "projectId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiResponseModel"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Project Management"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        },
+        "patch": {
+          "operationId": "ProjectController_updateRadProfile",
+          "summary": "Update RADIUS profile",
+          "parameters": [
+            {
+              "name": "orgId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            },
+            {
+              "name": "projectId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiResponseModel"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Project Management"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        }
+      },
+      "/v1/aaa/{orgId}/projects/{projectId}/groups": {
+        "put": {
+          "operationId": "ProjectController_updateProjectGroups",
+          "summary": "Update groups for a project",
+          "parameters": [
+            {
+              "name": "orgId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            },
+            {
+              "name": "projectId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateProjectGroupsDto"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiResponseModel"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Project Management"
+          ],
+          "security": [
+            {
+              "bearer": []
+            }
+          ]
+        },
+        "delete": {
+          "operationId": "ProjectController_removeProjectGroups",
+          "summary": "Remove groups from a project",
+          "parameters": [
+            {
+              "name": "orgId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            },
+            {
+              "name": "projectId",
+              "required": true,
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateProjectGroupsDto"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json":.
+.
+.

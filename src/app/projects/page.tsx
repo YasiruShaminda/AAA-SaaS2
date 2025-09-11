@@ -19,7 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { TemplateManagerDialog, type ProfileTemplate } from '@/components/projects/TemplateManager';
-import { useOrganization } from '@/contexts/OrganizationContext';
+import { useOrganization, type Project } from '@/contexts/OrganizationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
@@ -34,18 +34,6 @@ export type Profile = {
     replyAttributes: string[];
     vendorAttributes: string[];
     accountingAttributes: string[];
-};
-
-// New Project Data Type
-export type Project = {
-    id: string;
-    name: string;
-    description: string;
-    status: 'Active' | 'Draft';
-    createdAt: string;
-    sharedSecret: string;
-    subscriberGroups: string[];
-    profile: Profile;
 };
 
 const allRadiusAttributes = [
@@ -427,7 +415,7 @@ function AttributeEditor({ attributes, type, onToggle, onRemove, isDisabled }: {
 
 // Main Page Component
 export default function ProjectsPage() {
-    const { projects, setProjects, groups } = useOrganization();
+    const { projects, groups, addProject: addProjectToContext, updateProject: updateProjectInContext, deleteProject: deleteProjectFromContext, isOrgDataLoaded } = useOrganization();
     const { user } = useAuth();
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
     const [isBlinking, setIsBlinking] = useState(false);
@@ -457,13 +445,11 @@ export default function ProjectsPage() {
         setSelectedProject(null);
     }
 
-    const addProject = () => {
-        const newProject: Project = {
-            id: `proj-${Date.now()}`,
+    const addProject = async () => {
+        const newProjectData: Partial<Project> = {
             name: 'New Project',
             description: 'A new project ready for configuration.',
             status: 'Draft',
-            createdAt: new Date().toISOString().split('T')[0],
             sharedSecret: '',
             subscriberGroups: [],
             profile: {
@@ -475,8 +461,10 @@ export default function ProjectsPage() {
                 accountingAttributes: [],
             }
         };
-        setProjects(prev => [...prev, newProject]);
-        setSelectedProject(newProject);
+        const newProject = await addProjectToContext(newProjectData);
+        if (newProject) {
+            setSelectedProject(newProject);
+        }
     };
     
     const updateProject = (updatedProject: Project) => {
@@ -484,28 +472,28 @@ export default function ProjectsPage() {
         // This is an unsaved change in the editor. The actual save happens in `saveProject`.
     };
 
-    const saveProject = () => {
+    const saveProject = async () => {
         if (!selectedProject) return;
-        setProjects(prev => prev.map(p => p.id === selectedProject.id ? selectedProject : p));
+        await updateProjectInContext(selectedProject);
     };
 
-    const deleteProject = () => {
+    const deleteProject = async () => {
         if (!selectedProject) return;
-        const newProjects = projects.filter(p => p.id !== selectedProject.id);
-        setProjects(newProjects);
-        setSelectedProject(newProjects.length > 0 ? newProjects[0] : null);
+        await deleteProjectFromContext(selectedProject.id);
+        setSelectedProject(null);
     };
     
-    const duplicateProject = () => {
+    const duplicateProject = async () => {
         if (!selectedProject) return;
-        const newProject: Project = {
+        const newProjectData: Partial<Project> = {
             ...JSON.parse(JSON.stringify(selectedProject)),
-            id: `proj-${Date.now()}`,
             name: `${selectedProject.name} (Copy)`,
             status: 'Draft',
         };
-        setProjects(prev => [...prev, newProject]);
-        setSelectedProject(newProject);
+        const newProject = await addProjectToContext(newProjectData);
+        if (newProject) {
+            setSelectedProject(newProject);
+        }
     };
 
     if (selectedProject) {
@@ -522,7 +510,23 @@ export default function ProjectsPage() {
         )
     }
     
-    if (projects.length === 0) {
+    if (!isOrgDataLoaded && projects.length === 0) {
+        return (
+             <div className="flex h-[calc(100vh-8rem)] items-center justify-center">
+                <Card className="w-full max-w-lg text-center glass-card">
+                    <CardHeader>
+                         <div className="mx-auto mb-4 flex items-center justify-center size-16 bg-muted/50 rounded-full border-primary/20 animate-pulse">
+                           <FolderKanban className="size-8 text-primary/50" />
+                        </div>
+                        <CardTitle>Loading Projects...</CardTitle>
+                        <CardDescription>Please wait while we fetch your projects.</CardDescription>
+                    </CardHeader>
+                </Card>
+            </div>
+        )
+    }
+
+    if (isOrgDataLoaded && projects.length === 0) {
         return (
              <div className="flex h-[calc(100vh-8rem)] items-center justify-center">
                 <Card className="w-full max-w-lg text-center glass-card">

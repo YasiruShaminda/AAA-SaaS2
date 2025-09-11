@@ -1,10 +1,20 @@
-
-
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useAuth } from './AuthContext';
-import type { Project } from '@/app/projects/page';
+import * as api from '@/lib/api';
+
+// New Project Data Type - Moved from projects/page.tsx
+export type Project = {
+    id: string;
+    name: string;
+    description: string;
+    status: 'Active' | 'Draft';
+    createdAt: string;
+    sharedSecret: string;
+    subscriberGroups: string[];
+    profile: Profile;
+};
 
 export type Organization = {
     id: string;
@@ -24,10 +34,12 @@ export type Subscriber = {
     product: string;
     group: string;
     status: 'Online' | 'Offline';
+    product_id: number;
+    group_id: number;
 };
 
 export type Product = {
-    id: string;
+    id: number;
     name: string;
     bandwidthUp: string;
     bandwidthDown: string;
@@ -36,7 +48,7 @@ export type Product = {
 };
 
 export type Group = {
-    id: string;
+    id: number;
     name: string;
     description: string;
     subscribers: number;
@@ -53,82 +65,29 @@ interface OrganizationContextType {
     organizations: Organization[];
     selectedOrganization: Organization | null;
     isLoaded: boolean;
+    isOrgDataLoaded: boolean;
     selectOrganization: (organization: Organization | null, onSelect?: () => void) => void;
-    addOrganization: (organization: Organization, shouldAutoSelect?: boolean) => void;
+    addOrganization: (organization: Organization, shouldAutoSelect?: boolean) => Promise<Organization | null>;
     deleteOrganization: (orgId: string) => void;
     subscribers: Subscriber[];
-    setSubscribers: React.Dispatch<React.SetStateAction<Subscriber[]>>;
+    addSubscriber: (subscriber: Partial<Subscriber>) => Promise<Subscriber | null>;
+    updateSubscriber: (subscriber: Subscriber) => Promise<Subscriber | null>;
+    deleteSubscriber: (subscriberId: number) => Promise<void>;
     products: Product[];
-    setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
+    addProduct: (product: Partial<Product>) => Promise<Product | null>;
+    updateProduct: (product: Product) => Promise<Product | null>;
+    deleteProduct: (productId: number) => Promise<void>;
     groups: Group[];
-    setGroups: React.Dispatch<React.SetStateAction<Group[]>>;
+    addGroup: (group: Partial<Group>) => Promise<Group | null>;
+    updateGroup: (group: Group) => Promise<Group | null>;
+    deleteGroup: (groupId: number) => Promise<void>;
     profiles: Profile[];
     projects: Project[];
-    setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
+    addProject: (project: Partial<Project>) => Promise<Project | null>;
+    updateProject: (project: Project) => Promise<Project | null>;
+    deleteProject: (projectId: string) => Promise<void>;
     addDefaultDataForNewOrg: () => void;
 }
-
-const sampleOrganizations: Organization[] = [
-    {
-        id: 'org-1',
-        name: 'Global Corp',
-        type: 'Region',
-        description: 'Main corporate client',
-        subscribers: 1500,
-        status: 'Active',
-    },
-    {
-        id: 'org-2',
-        name: 'FTTX Provider',
-        type: 'Client',
-        description: 'Fiber provider for residential areas',
-        subscribers: 10000,
-        status: 'Trial',
-    },
-];
-
-const sampleSubscribers: Subscriber[] = [
-    { id: 1, username: 'user_one', pass: 'pass123', fullname: 'User One', product: 'Premium', group: 'Enterprise', status: 'Online' },
-    { id: 2, username: 'user_two', pass: 'secret', fullname: 'User Two', product: 'Basic', group: 'FTTX', status: 'Offline' },
-];
-
-const sampleProducts: Product[] = [
-    { id: 'prod_1', name: 'Basic', bandwidthUp: '5 Mbps', bandwidthDown: '25 Mbps', sessionLimit: '24h', subscribers: 1 },
-    { id: 'prod_2', name: 'Premium', bandwidthUp: '50 Mbps', bandwidthDown: '250 Mbps', sessionLimit: '72h', subscribers: 2 },
-];
-
-const sampleGroups: Group[] = [
-    { id: 'grp_1', name: 'Enterprise', description: 'Corporate users with full access', subscribers: 2, profile: 'Enterprise AAA' },
-    { id: 'grp_2', name: 'FTTX', description: 'Fiber-to-the-home residential users', subscribers: 1, profile: 'Wi-Fi Hotspot (Auth-Only)'},
-];
-
-const sampleProfiles: Profile[] = [
-    { id: 'tpl-wifi-hotspot', name: 'Wi-Fi Hotspot (Auth-Only)'},
-    { id: 'tpl-enterprise-aaa', name: 'Enterprise AAA' },
-];
-
-const initialProjects: Project[] = [
-    {
-        id: 'proj-1',
-        name: 'Enterprise AAA',
-        description: 'Full AAA profile for corporate networks with accounting.',
-        status: 'Active',
-        createdAt: '2024-07-20',
-        sharedSecret: 'super-secret-key-1',
-        subscriberGroups: ['Enterprise', 'VPN-Users'],
-        profile: { authEnabled: true, acctEnabled: true, checkAttributes: ['User-Name', 'User-Password'], replyAttributes: ['Framed-IP-Address', 'Class'], vendorAttributes: ['Cisco-AVPair'], accountingAttributes: ['Acct-Status-Type', 'Acct-Session-Id'] }
-    },
-     {
-        id: 'proj-2',
-        name: 'Guest Wi-Fi Hotspot',
-        description: 'Simple authentication for public Wi-Fi. No accounting.',
-        status: 'Draft',
-        createdAt: '2024-06-15',
-        sharedSecret: 'guest-secret-key-2',
-        subscriberGroups: ['Guest'],
-        profile: { authEnabled: true, acctEnabled: false, checkAttributes: ['User-Name', 'User-Password'], replyAttributes: ['Session-Timeout'], vendorAttributes: [], accountingAttributes: [] }
-    }
-];
 
 const OrganizationContext = createContext<OrganizationContextType | undefined>(undefined);
 
@@ -137,145 +96,277 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
     const [organizations, setOrganizations] = useState<Organization[]>([]);
     const [selectedOrganization, setSelectedOrganization] = useState<Organization | null>(null);
     const [isLoaded, setIsLoaded] = useState(false);
+    const [isOrgDataLoaded, setIsOrgDataLoaded] = useState(false);
     
     // Data states
     const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [groups, setGroups] = useState<Group[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
-    const [profiles, setProfiles] = useState<Profile[]>(sampleProfiles);
+    const [profiles, setProfiles] = useState<Profile[]>([]);
 
-    const loadDataForUser = useCallback((username: string) => {
-        console.log(`Loading data for ${username}`);
-        const storedOrgs = localStorage.getItem(`organizations_${username}`);
-        const orgs = storedOrgs ? JSON.parse(storedOrgs) : (username === 'Admin' ? sampleOrganizations : []);
-        setOrganizations(orgs);
-        
-        const storedSubscribers = localStorage.getItem(`subscribers_${username}`);
-        setSubscribers(storedSubscribers ? JSON.parse(storedSubscribers) : (username === 'Admin' ? sampleSubscribers : []));
 
-        const storedProducts = localStorage.getItem(`products_${username}`);
-        setProducts(storedProducts ? JSON.parse(storedProducts) : (username === 'Admin' ? sampleProducts : []));
-        
-        const storedGroups = localStorage.getItem(`groups_${username}`);
-        setGroups(storedGroups ? JSON.parse(storedGroups) : (username === 'Admin' ? sampleGroups : []));
-        
-        const storedProjects = localStorage.getItem(`projects_${username}`);
-        setProjects(storedProjects ? JSON.parse(storedProjects) : (username === 'Admin' ? initialProjects : []));
-
-        if (orgs.length > 0) {
-            const storedSelectedOrgId = localStorage.getItem(`selectedOrganizationId_${username}`);
-            if (storedSelectedOrgId) {
-                const org = orgs.find((o: Organization) => o.id === storedSelectedOrgId) || orgs[0];
-                setSelectedOrganization(org);
-            } else {
-                setSelectedOrganization(null);
+    const loadOrganizations = useCallback(async () => {
+        if (user) {
+            try {
+                const orgs = await api.getOrganizations(user.id);
+                setOrganizations(orgs);
+                // For now, keep the selection logic simple.
+                // We can improve this later to remember the last selection.
+                if (orgs.length > 0) {
+                    setSelectedOrganization(orgs[0]);
+                } else {
+                    setSelectedOrganization(null);
+                }
+            } catch (error) {
+                console.error("Failed to load organizations:", error);
+                // Handle error appropriately, e.g., show a toast notification
             }
-        } else {
-            setSelectedOrganization(null);
         }
         setIsLoaded(true);
-
-    }, []);
-
-    const saveDataForUser = useCallback((username: string, dataType: string, data: any) => {
-        localStorage.setItem(`${dataType}_${username}`, JSON.stringify(data));
-    }, []);
+    }, [user]);
 
     useEffect(() => {
-        if (user) {
-            loadDataForUser(user.name);
-        } else {
-            // No user logged in, clear all data
-            setOrganizations([]);
-            setSelectedOrganization(null);
-            setSubscribers([]);
-            setProducts([]);
-            setGroups([]);
-            setProjects([]);
-            setIsLoaded(true);
-        }
-    }, [user, loadDataForUser]);
+        loadOrganizations();
+    }, [loadOrganizations]);
 
     useEffect(() => {
-        if (user) saveDataForUser(user.name, 'organizations', organizations);
-    }, [organizations, user, saveDataForUser]);
-
-    useEffect(() => {
-        if (user) saveDataForUser(user.name, 'subscribers', subscribers);
-    }, [subscribers, user, saveDataForUser]);
-    
-    useEffect(() => {
-        if (user) saveDataForUser(user.name, 'products', products);
-    }, [products, user, saveDataForUser]);
-
-    useEffect(() => {
-        if (user) saveDataForUser(user.name, 'groups', groups);
-    }, [groups, user, saveDataForUser]);
-
-    useEffect(() => {
-        if (user) saveDataForUser(user.name, 'projects', projects);
-    }, [projects, user, saveDataForUser]);
+        const loadOrgData = async () => {
+            if (selectedOrganization) {
+                setIsOrgDataLoaded(false);
+                try {
+                    const [subscribersData, productsData, groupsData, projectsData] = await Promise.all([
+                        api.getSubscribers(selectedOrganization.id),
+                        api.getProducts(selectedOrganization.id),
+                        api.getGroups(selectedOrganization.id),
+                        api.getProjects(selectedOrganization.id)
+                    ]);
+                    setSubscribers(subscribersData);
+                    setProducts(productsData);
+                    setGroups(groupsData);
+                    setProjects(projectsData);
+                } catch (error) {
+                    console.error("Failed to load organization data:", error);
+                } finally {
+                    setIsOrgDataLoaded(true);
+                }
+            }
+        };
+        loadOrgData();
+    }, [selectedOrganization]);
 
 
     const selectOrganization = (organization: Organization | null, onSelect?: () => void) => {
         setSelectedOrganization(organization);
-        if (organization && user) {
-            localStorage.setItem(`selectedOrganizationId_${user.name}`, organization.id);
-        } else if (user) {
-            localStorage.removeItem(`selectedOrganizationId_${user.name}`);
-        }
-        
-        // The callback ensures that any subsequent action (like a redirect)
-        // happens after the state has been updated.
+        // We can re-add localStorage persistence for the selected org if needed
         if (onSelect) {
-            // Using a timeout to ensure the state update has propagated
             setTimeout(onSelect, 0);
         }
     };
     
-    const addOrganization = (organization: Organization, shouldAutoSelect = true) => {
-        setOrganizations(prev => {
-            const newOrgs = [...prev, organization];
-            if (shouldAutoSelect) {
-                // This will be called after the organizations state is updated
-                selectOrganization(organization);
+    const addOrganization = async (organization: Organization, shouldAutoSelect = true): Promise<Organization | null> => {
+        if (user) {
+            try {
+                const newOrgData = { name: organization.name, description: organization.description, owner_id: user.id };
+                const newOrg = await api.createOrganization(newOrgData);
+                setOrganizations(prev => [...prev, newOrg]);
+                if (shouldAutoSelect) {
+                    selectOrganization(newOrg);
+                }
+                return newOrg;
+            } catch (error) {
+                 console.error("Failed to create organization:", error);
+                 // Handle error appropriately
+                 return null;
             }
-            return newOrgs;
-        });
+        }
+        return null;
     };
     
-    const deleteOrganization = (orgId: string) => {
+    const deleteOrganization = async (orgId: string) => {
         if (selectedOrganization?.id === orgId) {
             selectOrganization(null);
         }
-        setOrganizations(prev => prev.filter(o => o.id !== orgId));
+        try {
+            await api.deleteOrganization(orgId);
+            setOrganizations(prev => prev.filter(o => o.id !== orgId));
+        } catch (error) {
+            console.error("Failed to delete organization:", error);
+        }
     };
 
     const addDefaultDataForNewOrg = () => {
-        const defaultGroup: Group = { id: 'grp_default_1', name: 'Default', description: 'Default subscriber group', subscribers: 1, profile: 'Enterprise AAA' };
-        const defaultProduct: Product = { id: 'prod_default_1', name: 'Default Plan', bandwidthUp: '10 Mbps', bandwidthDown: '50 Mbps', sessionLimit: '24h', subscribers: 1 };
-        const defaultSubscriber: Subscriber = { id: 1, username: 'default_user', pass: 'password', fullname: 'Default User', product: 'Default Plan', group: 'Default', status: 'Offline' };
-        const defaultProject: Project = {
-            id: 'proj-default-1', name: 'My First Project', description: 'A default project to get you started.', status: 'Draft', createdAt: new Date().toISOString().split('T')[0],
-            sharedSecret: 'your-secret-here', subscriberGroups: ['Default'],
-            profile: { authEnabled: true, acctEnabled: false, checkAttributes: ['User-Name', 'User-Password'], replyAttributes: ['Reply-Message', 'Session-Timeout'], vendorAttributes: [], accountingAttributes: [] }
-        };
+        // This function might need to be re-evaluated.
+        // Should default data be created on the backend when a new org is created?
+        // Or should we make a series of API calls to create it here?
+        // For now, this is left as is.
+    };
 
-        setGroups([defaultGroup]);
-        setProducts([defaultProduct]);
-        setSubscribers([defaultSubscriber]);
-        setProjects([defaultProject]);
+    const addProject = async (project: Partial<Project>): Promise<Project | null> => {
+        if (selectedOrganization) {
+            try {
+                const newProject = await api.createProject(selectedOrganization.id, project);
+                setProjects(prev => [...prev, newProject]);
+                return newProject;
+            } catch (error) {
+                console.error("Failed to create project:", error);
+                return null;
+            }
+        }
+        return null;
+    };
+
+    const updateProject = async (project: Project): Promise<Project | null> => {
+        if (selectedOrganization) {
+            try {
+                const updatedProject = await api.updateProject(selectedOrganization.id, project.id, project);
+                setProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
+                return updatedProject;
+            } catch (error) {
+                console.error("Failed to update project:", error);
+                return null;
+            }
+        }
+        return null;
+    };
+
+    const deleteProject = async (projectId: string) => {
+        if (selectedOrganization) {
+            try {
+                await api.deleteProject(selectedOrganization.id, projectId);
+                setProjects(prev => prev.filter(p => p.id !== projectId));
+            } catch (error) {
+                console.error("Failed to delete project:", error);
+            }
+        }
+    };
+
+    const addSubscriber = async (subscriber: Partial<Subscriber>): Promise<Subscriber | null> => {
+        if (selectedOrganization) {
+            try {
+                const newSubscriber = await api.createSubscriber(selectedOrganization.id, subscriber);
+                setSubscribers(prev => [...prev, newSubscriber]);
+                return newSubscriber;
+            } catch (error) {
+                console.error("Failed to create subscriber:", error);
+                return null;
+            }
+        }
+        return null;
+    };
+
+    const updateSubscriber = async (subscriber: Subscriber): Promise<Subscriber | null> => {
+        if (selectedOrganization) {
+            try {
+                const updatedSubscriber = await api.updateSubscriber(selectedOrganization.id, subscriber.id, subscriber);
+                setSubscribers(prev => prev.map(s => s.id === updatedSubscriber.id ? updatedSubscriber : s));
+                return updatedSubscriber;
+            } catch (error) {
+                console.error("Failed to update subscriber:", error);
+                return null;
+            }
+        }
+        return null;
+    };
+
+    const deleteSubscriber = async (subscriberId: number) => {
+        if (selectedOrganization) {
+            try {
+                await api.deleteSubscriber(selectedOrganization.id, subscriberId);
+                setSubscribers(prev => prev.filter(s => s.id !== subscriberId));
+            } catch (error) {
+                console.error("Failed to delete subscriber:", error);
+            }
+        }
+    };
+
+    const addProduct = async (product: Partial<Product>): Promise<Product | null> => {
+        if (selectedOrganization) {
+            try {
+                const newProduct = await api.createProduct(selectedOrganization.id, product);
+                setProducts(prev => [...prev, newProduct]);
+                return newProduct;
+            } catch (error) {
+                console.error("Failed to create product:", error);
+                return null;
+            }
+        }
+        return null;
+    };
+
+    const updateProduct = async (product: Product): Promise<Product | null> => {
+        if (selectedOrganization) {
+            try {
+                const updatedProduct = await api.updateProduct(selectedOrganization.id, product.id, product);
+                setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+                return updatedProduct;
+            } catch (error) {
+                console.error("Failed to update product:", error);
+                return null;
+            }
+        }
+        return null;
+    };
+
+    const deleteProduct = async (productId: number) => {
+        if (selectedOrganization) {
+            try {
+                await api.deleteProduct(selectedOrganization.id, productId);
+                setProducts(prev => prev.filter(p => p.id !== productId));
+            } catch (error) {
+                console.error("Failed to delete product:", error);
+            }
+        }
+    };
+
+    const addGroup = async (group: Partial<Group>): Promise<Group | null> => {
+        if (selectedOrganization) {
+            try {
+                const newGroup = await api.createGroup(selectedOrganization.id, group);
+                setGroups(prev => [...prev, newGroup]);
+                return newGroup;
+            } catch (error) {
+                console.error("Failed to create group:", error);
+                return null;
+            }
+        }
+        return null;
+    };
+
+    const updateGroup = async (group: Group): Promise<Group | null> => {
+        if (selectedOrganization) {
+            try {
+                const updatedGroup = await api.updateGroup(selectedOrganization.id, group.id, group);
+                setGroups(prev => prev.map(g => g.id === updatedGroup.id ? updatedGroup : g));
+                return updatedGroup;
+            } catch (error) {
+                console.error("Failed to update group:", error);
+                return null;
+            }
+        }
+        return null;
+    };
+
+    const deleteGroup = async (groupId: number) => {
+        if (selectedOrganization) {
+            try {
+                await api.deleteGroup(selectedOrganization.id, groupId);
+                setGroups(prev => prev.filter(g => g.id !== groupId));
+            } catch (error) {
+                console.error("Failed to delete group:", error);
+            }
+        }
     };
 
     return (
         <OrganizationContext.Provider value={{ 
-            organizations, selectedOrganization, selectOrganization, addOrganization, deleteOrganization, isLoaded,
-            subscribers, setSubscribers,
-            products, setProducts,
-            groups, setGroups,
+            organizations, selectedOrganization, selectOrganization, addOrganization, deleteOrganization, isLoaded, isOrgDataLoaded,
+            subscribers, addSubscriber, updateSubscriber, deleteSubscriber,
+            products, addProduct, updateProduct, deleteProduct,
+            groups, addGroup, updateGroup, deleteGroup,
             profiles,
-            projects, setProjects,
+            projects,
+            addProject, updateProject, deleteProject,
             addDefaultDataForNewOrg
         }}>
             {children}
