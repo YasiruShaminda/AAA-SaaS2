@@ -1,6 +1,6 @@
 import { Organization, Subscriber, Product, Group, Project } from '@/contexts/OrganizationContext';
 
-const API_BASE_URL = '/api/v1';
+const API_BASE_URL = 'http://54.205.5.145:3500/v1';
 
 async function request<T>(
   endpoint: string,
@@ -19,12 +19,19 @@ async function request<T>(
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'API request failed');
+    let errorMessage = 'API request failed';
+    try {
+      const error = await response.json();
+      errorMessage = error.message || `HTTP ${response.status}: ${response.statusText}`;
+    } catch (parseError) {
+      errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+    }
+    throw new Error(errorMessage);
   }
 
   const data = await response.json();
-  return data.data as T;
+  // Handle both cases where data might be wrapped in a 'data' property or returned directly
+  return (data.data !== undefined ? data.data : data) as T;
 }
 
 // Authentication

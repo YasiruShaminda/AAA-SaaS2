@@ -1,6 +1,7 @@
 
 'use client';
 
+import { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,7 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import * as api from "@/lib/api";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 
 const formSchema = z.object({
@@ -26,6 +28,7 @@ export default function LoginPage() {
     const { login } = useAuth();
     const { toast } = useToast();
     const { organizations, isLoaded } = useOrganization();
+    const [isLogging, setIsLogging] = useState(false);
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -36,19 +39,49 @@ export default function LoginPage() {
     });
 
     const handleLogin = async (values: z.infer<typeof formSchema>) => {
-        const result = await login(values.email, values.password);
+        if (isLogging) return;
+        setIsLogging(true);
+        
+        try {
+            const result = await login(values.email, values.password);
 
-        if (result && result.isVerified) {
-            router.push('/organizations');
-        } else if (result && !result.isVerified) {
-            router.push('/verify-email');
-        }
-        else {
+            if (result) {
+                // Skip email verification check for login - only check during registration
+                // Check if user has organizations
+                try {
+                    const userOrganizations = await api.getOrganizations(result.user.id);
+                    
+                    // Ensure we have a valid array and it has organizations
+                    const orgsArray = Array.isArray(userOrganizations) ? userOrganizations : [];
+                    
+                    if (orgsArray.length > 0) {
+                        // User has organizations, redirect to organizations page
+                        router.push('/organizations');
+                    } else {
+                        // User has no organizations, redirect to create new organization
+                        router.push('/organizations/new');
+                    }
+                } catch (error) {
+                    console.error("Failed to fetch organizations:", error);
+                    // Fallback to create new organization page if API call fails
+                    router.push('/organizations/new');
+                }
+            } else {
+                toast({
+                    variant: "destructive",
+                    title: "Login Failed",
+                    description: "Invalid email or password.",
+                });
+            }
+        } catch (error) {
+            console.error("Login error:", error);
             toast({
                 variant: "destructive",
-                title: "Login Failed",
-                description: "Invalid email or password.",
+                title: "Login Failed", 
+                description: "An error occurred during login. Please try again.",
             });
+        } finally {
+            setIsLogging(false);
         }
     };
 
@@ -93,9 +126,9 @@ export default function LoginPage() {
                                         </FormItem>
                                     )}
                                 />
-                                 <Button type="submit" className="w-full" size="lg">
+                                 <Button type="submit" className="w-full" size="lg" disabled={isLogging}>
                                     <Fingerprint className="mr-2"/>
-                                    Authenticate
+                                    {isLogging ? "Authenticating..." : "Authenticate"}
                                 </Button>
                             </form>
                         </Form>

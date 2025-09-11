@@ -59,8 +59,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             localStorage.setItem('token', response.accessToken);
             const authenticatedUser = await api.getAuthenticatedUser();
             setUser(authenticatedUser);
-            // Assuming the user object from the API has an `emailVerified` property
-            return { user: authenticatedUser, isVerified: !!authenticatedUser.emailVerified };
+            // For login, we skip email verification check - always consider verified
+            return { user: authenticatedUser, isVerified: true };
         } catch (error) {
             console.error("Login failed:", error);
             return null;

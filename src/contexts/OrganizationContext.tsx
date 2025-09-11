@@ -110,18 +110,26 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
         if (user) {
             try {
                 const orgs = await api.getOrganizations(user.id);
-                setOrganizations(orgs);
+                // Ensure orgs is an array, fallback to empty array if not
+                const organizationsArray = Array.isArray(orgs) ? orgs : [];
+                setOrganizations(organizationsArray);
                 // For now, keep the selection logic simple.
                 // We can improve this later to remember the last selection.
-                if (orgs.length > 0) {
-                    setSelectedOrganization(orgs[0]);
+                if (organizationsArray.length > 0) {
+                    setSelectedOrganization(organizationsArray[0]);
                 } else {
                     setSelectedOrganization(null);
                 }
             } catch (error) {
                 console.error("Failed to load organizations:", error);
-                // Handle error appropriately, e.g., show a toast notification
+                // On error, set to empty array to prevent undefined states
+                setOrganizations([]);
+                setSelectedOrganization(null);
             }
+        } else {
+            // If no user, clear organizations
+            setOrganizations([]);
+            setSelectedOrganization(null);
         }
         setIsLoaded(true);
     }, [user]);
@@ -134,22 +142,59 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
         const loadOrgData = async () => {
             if (selectedOrganization) {
                 setIsOrgDataLoaded(false);
+                
+                // Initialize with empty arrays to prevent undefined states
+                setSubscribers([]);
+                setProducts([]);
+                setGroups([]);
+                setProjects([]);
+                
                 try {
-                    const [subscribersData, productsData, groupsData, projectsData] = await Promise.all([
-                        api.getSubscribers(selectedOrganization.id),
-                        api.getProducts(selectedOrganization.id),
-                        api.getGroups(selectedOrganization.id),
-                        api.getProjects(selectedOrganization.id)
-                    ]);
-                    setSubscribers(subscribersData);
-                    setProducts(productsData);
-                    setGroups(groupsData);
-                    setProjects(projectsData);
+                    // Load data types that are likely to exist and handle individual failures
+                    console.log(`Loading data for organization: ${selectedOrganization.id}`);
+                    
+                    // Try to load subscribers first as it's most likely to exist
+                    try {
+                        const subscribersData = await api.getSubscribers(selectedOrganization.id);
+                        setSubscribers(Array.isArray(subscribersData) ? subscribersData : []);
+                    } catch (error) {
+                        console.warn("Failed to load subscribers:", error);
+                    }
+                    
+                    // Try other endpoints individually
+                    try {
+                        const productsData = await api.getProducts(selectedOrganization.id);
+                        setProducts(Array.isArray(productsData) ? productsData : []);
+                    } catch (error) {
+                        console.warn("Failed to load products:", error);
+                    }
+                    
+                    try {
+                        const groupsData = await api.getGroups(selectedOrganization.id);
+                        setGroups(Array.isArray(groupsData) ? groupsData : []);
+                    } catch (error) {
+                        console.warn("Failed to load groups:", error);
+                    }
+                    
+                    try {
+                        const projectsData = await api.getProjects(selectedOrganization.id);
+                        setProjects(Array.isArray(projectsData) ? projectsData : []);
+                    } catch (error) {
+                        console.warn("Failed to load projects:", error);
+                    }
+                    
                 } catch (error) {
                     console.error("Failed to load organization data:", error);
                 } finally {
                     setIsOrgDataLoaded(true);
                 }
+            } else {
+                // Clear data when no organization is selected
+                setSubscribers([]);
+                setProducts([]);
+                setGroups([]);
+                setProjects([]);
+                setIsOrgDataLoaded(true);
             }
         };
         loadOrgData();

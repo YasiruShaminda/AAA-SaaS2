@@ -27,12 +27,6 @@ export default function OrganizationsPage() {
     const [newOrgDesc, setNewOrgDesc] = useState('');
     const { toast } = useToast();
 
-
-    useEffect(() => {
-        if (isLoaded && organizations.length === 0) {
-            router.push('/organizations/new');
-        }
-    }, [isLoaded, organizations, router]);
     
      useEffect(() => {
         if (user) {
@@ -127,8 +121,21 @@ export default function OrganizationsPage() {
         }
 
         if (organizations.length === 0) {
-            // This will be shown briefly before the useEffect redirects.
-            return null;
+            return (
+                <div className="text-center py-12">
+                    <div className="max-w-md mx-auto">
+                        <Building className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold mb-2">No Organizations Found</h3>
+                        <p className="text-muted-foreground mb-6">
+                            You don't have any organizations yet. Create your first organization to get started.
+                        </p>
+                        <Button onClick={() => router.push('/organizations/new')} size="lg">
+                            <PlusCircle className="w-4 h-4 mr-2" />
+                            Create Organization
+                        </Button>
+                    </div>
+                </div>
+            );
         }
 
         return (
@@ -148,12 +155,12 @@ export default function OrganizationsPage() {
                                     <Building className="size-8 text-primary" />
                                 </div>
                             </div>
-                            <CardTitle className="text-center">{org.name}</CardTitle>
-                            <CardDescription className="text-center truncate">{org.description}</CardDescription>
+                            <CardTitle className="text-center">{org.name || 'Unnamed Organization'}</CardTitle>
+                            <CardDescription className="text-center truncate">{org.description || 'No description'}</CardDescription>
                         </CardHeader>
                         <CardContent className="flex justify-center items-center gap-2 text-sm text-muted-foreground">
                             <Users className="size-4" />
-                            <span>{org.subscribers.toLocaleString()} subscribers</span>
+                            <span>{(org.subscribers || 0).toLocaleString()} subscribers</span>
                         </CardContent>
                     </Card>
                 ))}
