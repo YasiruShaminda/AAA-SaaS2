@@ -36,7 +36,7 @@ export default function LoginPage() {
     });
 
     const handleLogin = async (values: z.infer<typeof formSchema>) => {
-        const result = await login(values.username, values.password);
+        const result = await login(values.email, values.password);
 
         if (result && result.isVerified) {
             router.push('/organizations');
@@ -47,7 +47,7 @@ export default function LoginPage() {
             toast({
                 variant: "destructive",
                 title: "Login Failed",
-                description: "Invalid username or password.",
+                description: "Invalid email or password.",
             });
         }
     };
