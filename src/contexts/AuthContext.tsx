@@ -45,7 +45,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     setUser(authenticatedUser);
                 } catch (error) {
                     console.error("Failed to fetch authenticated user", error);
+                    // Clear invalid token and user state
                     localStorage.removeItem('token');
+                    setUser(null);
                 }
             }
             setIsLoaded(true);
@@ -86,10 +88,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 
     const logout = useCallback(() => {
+        // Clear all authentication-related data
         localStorage.removeItem('token');
+        
+        // Clear organization-related data to prevent access to stale data
+        if (user) {
+            localStorage.removeItem(`organizations_${user.name}`);
+            localStorage.removeItem(`selectedOrganization_${user.name}`);
+        }
+        
+        // Clear user state
         setUser(null);
+        
+        // Redirect to login page
         router.push('/login');
-    }, [router]);
+    }, [router, user]);
 
     return (
         <AuthContext.Provider value={{ user, login, register, logout, sendVerificationEmail, isLoaded }}>

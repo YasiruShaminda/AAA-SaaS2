@@ -19,6 +19,13 @@ async function request<T>(
   });
 
   if (!response.ok) {
+    // Handle 401 Unauthorized - token is invalid or expired
+    if (response.status === 401) {
+      localStorage.removeItem('token');
+      window.location.href = '/login';
+      throw new Error('Session expired. Please login again.');
+    }
+
     let errorMessage = 'API request failed';
     try {
       const error = await response.json();

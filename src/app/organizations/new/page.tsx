@@ -62,19 +62,40 @@ export default function NewOrganizationPage() {
         
         const newOrg = await addOrganization(newOrgData as Organization, false);
         
+        console.log('Organization creation result:', newOrg);
+        
         if (newOrg) {
-            // This logic runs for the very first organization created by a user.
+            console.log('New organization created with ID:', newOrg.id, 'Name:', newOrg.name);
+            // Manually select the new org
+            selectOrganization(newOrg);
+            
+            // Create default data for new users immediately
             if (user && organizations.length === 0) {
-                addDefaultDataForNewOrg();
-                // Set flags to trigger onboarding hints on the subscribers page.
+                console.log('This is a new user creating their first organization');
+                // Set the onboarding flags
                 localStorage.setItem(`onboarding_show_groups_hint_${user.name}`, 'true');
+                localStorage.setItem(`onboarding_complete_${user.name}`, 'false');
+                
+                // Create default data immediately with the new organization
+                console.log('Starting default data creation for new organization...');
+                
+                // Wait for default data creation before redirecting
+                try {
+                    await addDefaultDataForNewOrg(newOrg);
+                    console.log('Default data creation completed successfully');
+                } catch (error) {
+                    console.error('Default data creation failed:', error);
+                }
+            } else {
+                console.log('Existing user or not their first organization - skipping default data creation');
             }
-
-            // Manually select the new org. The callback ensures the redirect
-            // happens only after the state has been successfully updated.
-            selectOrganization(newOrg, () => {
+            
+            // Redirect to subscribers page after a brief delay to allow data creation
+            setTimeout(() => {
+                console.log('Redirecting to subscribers page...');
                 router.push('/subscribers');
-            });
+                setIsCreating(false);
+            }, 800);
         } else {
             setIsCreating(false);
             toast({

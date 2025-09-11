@@ -3,17 +3,12 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LogOut, User } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function ProfilePage() {
-  const router = useRouter();
-
-  const handleLogout = () => {
-    // In a real app, you would clear the user session here
-    router.push('/login');
-  };
+  const { logout, user } = useAuth();
 
   return (
     <div className="flex h-full min-h-[calc(100vh-8rem)] items-center justify-center">
@@ -25,11 +20,11 @@ export default function ProfilePage() {
                     <User className="h-12 w-12" />
                 </AvatarFallback>
             </Avatar>
-          <CardTitle className="text-3xl font-headline">Admin</CardTitle>
-          <CardDescription>Logged in as: admin</CardDescription>
+          <CardTitle className="text-3xl font-headline">{user?.name || 'User'}</CardTitle>
+          <CardDescription>Logged in as: {user?.email || 'Unknown'}</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button variant="destructive" className="w-full" onClick={handleLogout}>
+          <Button variant="destructive" className="w-full" onClick={logout}>
             <LogOut className="mr-2" />
             Logout
           </Button>

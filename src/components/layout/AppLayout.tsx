@@ -23,14 +23,32 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const isUnprotected = unprotectedRoutes.includes(pathname);
   const isOrgSetup = pathname.startsWith('/organizations');
 
+  // Security check: Validate token exists for protected routes
+  useEffect(() => {
+    if (!isUnprotected) {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.log('No token found, redirecting to login');
+        router.push('/login');
+        return;
+      }
+    }
+  }, [pathname, isUnprotected, router]);
+
   // Onboarding flow: if no organization is selected, redirect to the organization page
   // unless we are already on an unprotected page.
   useEffect(() => {
+    // Always check authentication first
     if (isAuthLoaded && !user && !isUnprotected) {
+      console.log('User not authenticated, redirecting to login');
       router.push('/login');
+      return;
     }
 
-    if (isAuthLoaded && user && isOrgLoaded && !selectedOrganization && !isOrgSetup) {
+    // Don't redirect if we're already navigating somewhere after org creation
+    const isNavigatingAfterOrgCreation = pathname === '/subscribers' || pathname === '/projects';
+    
+    if (isAuthLoaded && user && isOrgLoaded && !selectedOrganization && !isOrgSetup && !isNavigatingAfterOrgCreation) {
       const userOrgs = JSON.parse(localStorage.getItem(`organizations_${user.name}`) || '[]');
       if (userOrgs.length > 0) {
         router.push('/organizations');

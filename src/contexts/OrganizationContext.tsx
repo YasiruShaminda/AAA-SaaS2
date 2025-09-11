@@ -86,7 +86,7 @@ interface OrganizationContextType {
     addProject: (project: Partial<Project>) => Promise<Project | null>;
     updateProject: (project: Project) => Promise<Project | null>;
     deleteProject: (projectId: string) => Promise<void>;
-    addDefaultDataForNewOrg: () => void;
+    addDefaultDataForNewOrg: (organization?: Organization) => Promise<void>;
 }
 
 const OrganizationContext = createContext<OrganizationContextType | undefined>(undefined);
@@ -205,7 +205,8 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
         setSelectedOrganization(organization);
         // We can re-add localStorage persistence for the selected org if needed
         if (onSelect) {
-            setTimeout(onSelect, 0);
+            // Give a small delay to ensure state updates complete
+            setTimeout(onSelect, 100);
         }
     };
     
@@ -240,11 +241,105 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
-    const addDefaultDataForNewOrg = () => {
-        // This function might need to be re-evaluated.
-        // Should default data be created on the backend when a new org is created?
-        // Or should we make a series of API calls to create it here?
-        // For now, this is left as is.
+    const addDefaultDataForNewOrg = async (organization?: Organization) => {
+        const targetOrg = organization || selectedOrganization;
+        if (!targetOrg) {
+            console.error('No organization provided for default data creation');
+            return;
+        }
+        
+        try {
+            console.log('Creating default data for new organization:', targetOrg.name, 'ID:', targetOrg.id);
+            
+            // Create default data with individual error handling
+            let defaultGroup: Group | null = null;
+            let defaultSubscriber: Subscriber | null = null;
+            let defaultProject: Project | null = null;
+            
+            // Step 1: Create default group first
+            try {
+                console.log('Creating default group...');
+                const groupData = {
+                    name: 'Default Group',
+                    description: 'Default subscriber group for new organization',
+                    profile: 'default'
+                };
+                console.log('Group data to send:', groupData);
+                
+                defaultGroup = await api.createGroup(targetOrg.id, groupData);
+                if (defaultGroup) {
+                    setGroups(prev => [...prev, defaultGroup!]);
+                    console.log('Default group created successfully:', defaultGroup);
+                } else {
+                    console.error('Group creation returned null/undefined');
+                }
+            } catch (error) {
+                console.error('Failed to create default group:', error);
+                console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
+            }
+            
+            // Step 2: Create default subscriber (bind to default group)
+            if (defaultGroup) {
+                try {
+                    console.log('Creating default subscriber with group:', defaultGroup.name, 'ID:', defaultGroup.id);
+                    const subscriberData = {
+                        username: 'demo-user',
+                        pass: 'demo123',
+                        fullname: 'Demo User',
+                        product: 'Default Plan',
+                        group: defaultGroup.name,
+                        group_id: defaultGroup.id,
+                        status: 'Offline' as const
+                        // Note: product_id might be optional or handled by the backend
+                    };
+                    console.log('Subscriber data to send:', subscriberData);
+                    
+                    defaultSubscriber = await api.createSubscriber(targetOrg.id, subscriberData);
+                    if (defaultSubscriber) {
+                        setSubscribers(prev => [...prev, defaultSubscriber!]);
+                        console.log('Default subscriber created successfully:', defaultSubscriber);
+                    } else {
+                        console.error('Subscriber creation returned null/undefined');
+                    }
+                } catch (error) {
+                    console.error('Failed to create default subscriber:', error);
+                    console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
+                }
+            } else {
+                console.warn('Skipping subscriber creation because default group was not created');
+            }
+            
+            // Step 3: Create default project
+            try {
+                console.log('Creating default project...');
+                const projectData = {
+                    name: 'My First AAA Project',
+                    description: 'Welcome to your first AAA authentication project! This project helps you get started with RADIUS authentication.',
+                    status: 'Draft' as const,
+                    sharedSecret: 'testing123',
+                    subscriberGroups: defaultGroup ? [defaultGroup.name] : []
+                };
+                console.log('Project data to send:', projectData);
+                
+                defaultProject = await api.createProject(targetOrg.id, projectData);
+                if (defaultProject) {
+                    setProjects(prev => [...prev, defaultProject!]);
+                    console.log('Default project created successfully:', defaultProject);
+                } else {
+                    console.error('Project creation returned null/undefined');
+                }
+            } catch (error) {
+                console.error('Failed to create default project:', error);
+                console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
+            }
+            
+            console.log('Default data creation process completed');
+            console.log('Summary - Group:', !!defaultGroup, 'Subscriber:', !!defaultSubscriber, 'Project:', !!defaultProject);
+            
+        } catch (error) {
+            console.error('Failed to create default data - outer catch:', error);
+            console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
+        }
     };
 
     const addProject = async (project: Partial<Project>): Promise<Project | null> => {
