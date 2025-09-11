@@ -22,7 +22,7 @@ export type LoginResult = {
 
 interface AuthContextType {
     user: User | null;
-    login: (username: string, pass: string) => Promise<LoginResult | null>;
+    login: (email: string, pass: string) => Promise<LoginResult | null>;
     register: (username: string, email: string, pass: string) => Promise<User>;
     logout: () => void;
     sendVerificationEmail: (email: string) => void;
@@ -53,9 +53,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         loadUser();
     }, []);
 
-    const login = async (username: string, pass: string): Promise<LoginResult | null> => {
+    const login = async (email: string, pass: string): Promise<LoginResult | null> => {
         try {
-            const response = await api.login({ username, password: pass });
+            const response = await api.login({ email, password: pass });
             localStorage.setItem('token', response.accessToken);
             const authenticatedUser = await api.getAuthenticatedUser();
             setUser(authenticatedUser);
@@ -70,8 +70,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const register = async (username: string, email: string, pass: string): Promise<User> => {
         try {
             const newUser = await api.register({ username, email, password: pass });
-            // After registering, log the user in to get a token
-            await login(username, pass);
+            // After registering, log the user in to get a token (using email instead of username)
+            await login(email, pass);
             return newUser;
         } catch (error) {
             console.error("Registration failed:", error);
