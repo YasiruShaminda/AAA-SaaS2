@@ -31,8 +31,11 @@ export default function SubscribersPage() {
         addProduct,
         deleteProduct,
         addGroup,
+        updateGroup,
         deleteGroup,
-        isOrgDataLoaded
+        isOrgDataLoaded,
+        getProjectsForGroup,
+        getSubscriberCountForGroup
     } = useOrganization();
     const { user } = useAuth();
     const router = useRouter();
@@ -40,6 +43,8 @@ export default function SubscribersPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [showGroupsHint, setShowGroupsHint] = useState(false);
     const [showProjectButton, setShowProjectButton] = useState(false);
+    const [editingGroup, setEditingGroup] = useState<Group | null>(null);
+    const [isEditGroupModalOpen, setIsEditGroupModalOpen] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -93,6 +98,16 @@ export default function SubscribersPage() {
         }
         setShowProjectButton(false);
         router.push('/projects');
+    };
+
+    const handleEditGroup = (group: Group) => {
+        setEditingGroup(group);
+        setIsEditGroupModalOpen(true);
+    };
+
+    const handleCloseEditModal = () => {
+        setEditingGroup(null);
+        setIsEditGroupModalOpen(false);
     };
 
     return (
@@ -328,7 +343,7 @@ export default function SubscribersPage() {
                             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                                 <div>
                                     <CardTitle>Groups</CardTitle>
-                                    <CardDescription>Organize subscribers into groups for policy management.</CardDescription>
+                                    <CardDescription>Organize subscribers into groups. Assign groups to projects to apply authentication policies.</CardDescription>
                                 </div>
                                 <Dialog>
                                     <DialogTrigger asChild>
@@ -344,7 +359,7 @@ export default function SubscribersPage() {
                                     <TableRow>
                                         <TableHead>Group Name</TableHead>
                                         <TableHead>Description</TableHead>
-                                        <TableHead>RADIUS Profile</TableHead>
+                                        <TableHead>Projects</TableHead>
                                         <TableHead>Subscribers</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
@@ -362,13 +377,28 @@ export default function SubscribersPage() {
                                         <TableRow key={group.id}>
                                             <TableCell className="font-medium">{group.name}</TableCell>
                                             <TableCell>{group.description}</TableCell>
-                                            <TableCell><Badge variant="outline">{group.profile}</Badge></TableCell>
-                                            <TableCell>{group.subscribers}</TableCell>
+                                            <TableCell>
+                                                {(() => {
+                                                    const groupProjects = getProjectsForGroup(group.name);
+                                                    return groupProjects.length > 0 ? (
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {groupProjects.map(project => (
+                                                                <Badge key={project.id} variant="outline" className="text-xs">
+                                                                    {project.name}
+                                                                </Badge>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-muted-foreground text-sm">No projects</span>
+                                                    );
+                                                })()}
+                                            </TableCell>
+                                            <TableCell>{getSubscriberCountForGroup(group.id)}</TableCell>
                                             <TableCell className="text-right">
                                                  <DropdownMenu>
                                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal /></Button></DropdownMenuTrigger>
                                                     <DropdownMenuContent>
-                                                        <DropdownMenuItem><Pencil className="mr-2" /> Edit</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleEditGroup(group)}><Pencil className="mr-2" /> Edit</DropdownMenuItem>
                                                         <AlertDialog>
                                                             <AlertDialogTrigger asChild>
                                                                 <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2" /> Delete</DropdownMenuItem>
@@ -405,22 +435,30 @@ export default function SubscribersPage() {
                      </Card>
                 </TabsContent>
             </Tabs>
+
+            {/* Edit Group Modal */}
+            {editingGroup && (
+                <EditGroupDialog 
+                    group={editingGroup} 
+                    isOpen={isEditGroupModalOpen} 
+                    onClose={handleCloseEditModal} 
+                    onUpdate={updateGroup}
+                />
+            )}
         </div>
     );
 }
 
 function AddGroupDialog() {
-    const { addGroup, profiles } = useOrganization();
+    const { addGroup } = useOrganization();
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
-    const [profileId, setProfileId] = useState('');
     const [isOpen, setIsOpen] = useState(false);
 
     const handleSubmit = async () => {
         const groupData = {
             name,
             description,
-            profile: profileId,
         };
         await addGroup(groupData);
         setIsOpen(false);
@@ -430,7 +468,7 @@ function AddGroupDialog() {
         <DialogContent>
             <DialogHeader>
                 <DialogTitle>Add New Group</DialogTitle>
-                <DialogDescription>Create a new group to organize subscribers.</DialogDescription>
+                <DialogDescription>Create a new group to organize subscribers. Groups can be assigned to projects for authentication policies.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
@@ -441,20 +479,89 @@ function AddGroupDialog() {
                     <Label htmlFor="g-desc" className="text-right">Description</Label>
                     <Input id="g-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g. Corporate users" className="col-span-3" />
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="g-profile" className="text-right">RADIUS Profile</Label>
-                    <Select onValueChange={setProfileId}>
-                        <SelectTrigger className="col-span-3"><SelectValue placeholder="Select a profile" /></SelectTrigger>
-                        <SelectContent>
-                            {profiles.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                </div>
             </div>
             <DialogFooter>
                 <Button onClick={handleSubmit}>Save Group</Button>
             </DialogFooter>
         </DialogContent>
+    );
+}
+
+function EditGroupDialog({ group, isOpen, onClose, onUpdate }: { group: Group, isOpen: boolean, onClose: () => void, onUpdate: (group: Group) => Promise<Group | null> }) {
+    const [name, setName] = useState(group.name);
+    const [description, setDescription] = useState(group.description);
+    const [isUpdating, setIsUpdating] = useState(false);
+
+    // Reset form when group changes
+    useEffect(() => {
+        setName(group.name);
+        setDescription(group.description);
+    }, [group]);
+
+    const handleSubmit = async () => {
+        if (!name.trim()) return;
+        
+        setIsUpdating(true);
+        try {
+            const updatedGroup = {
+                ...group,
+                name: name.trim(),
+                description: description.trim(),
+            };
+            await onUpdate(updatedGroup);
+            onClose();
+        } catch (error) {
+            console.error('Failed to update group:', error);
+        } finally {
+            setIsUpdating(false);
+        }
+    };
+
+    const handleCancel = () => {
+        setName(group.name);
+        setDescription(group.description);
+        onClose();
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={handleCancel}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Edit Group</DialogTitle>
+                    <DialogDescription>Update the group name and description.</DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="edit-g-name" className="text-right">Name</Label>
+                        <Input 
+                            id="edit-g-name" 
+                            value={name} 
+                            onChange={(e) => setName(e.target.value)} 
+                            placeholder="e.g. Enterprise" 
+                            className="col-span-3" 
+                        />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="edit-g-desc" className="text-right">Description</Label>
+                        <Input 
+                            id="edit-g-desc" 
+                            value={description} 
+                            onChange={(e) => setDescription(e.target.value)} 
+                            placeholder="e.g. Corporate users" 
+                            className="col-span-3" 
+                        />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={handleCancel} disabled={isUpdating}>
+                        Cancel
+                    </Button>
+                    <Button onClick={handleSubmit} disabled={isUpdating || !name.trim()}>
+                        {isUpdating ? 'Updating...' : 'Update Group'}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }
 
@@ -553,7 +660,7 @@ function AddSubscriberDialog() {
                     <Select onValueChange={setProductId}>
                         <SelectTrigger className="col-span-3"><SelectValue placeholder="Select a product" /></SelectTrigger>
                         <SelectContent>
-                            {products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                            {products.map(p => <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>)}
                         </SelectContent>
                     </Select>
                 </div>
@@ -562,7 +669,7 @@ function AddSubscriberDialog() {
                     <Select onValueChange={setGroupId}>
                         <SelectTrigger className="col-span-3"><SelectValue placeholder="Select a group" /></SelectTrigger>
                         <SelectContent>
-                            {groups.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+                            {groups.map(g => <SelectItem key={g.id} value={g.id.toString()}>{g.name}</SelectItem>)}
                         </SelectContent>
                     </Select>
                 </div>
