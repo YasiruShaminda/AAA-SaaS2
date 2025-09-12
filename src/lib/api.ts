@@ -1,6 +1,6 @@
 import { Organization, Subscriber, Product, Group, Project } from '@/contexts/OrganizationContext';
 
-const API_BASE_URL = 'http://54.205.5.145:3500/v1';
+const API_BASE_URL = '/api//v1';
 
 async function request<T>(
   endpoint: string,
