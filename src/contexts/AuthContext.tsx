@@ -12,6 +12,20 @@ export type User = {
     emailVerified?: boolean;
 };
 
+// Helper function to normalize user data from API
+const normalizeUserData = (apiUser: any): User => {
+    console.log('Raw API user data:', apiUser);
+    const normalized = {
+        id: apiUser.id,
+        // API returns 'userName' (with capital N), so check that first
+        name: apiUser.userName || apiUser.username || apiUser.name || apiUser.fullName || apiUser.full_name || apiUser.display_name || 'User',
+        email: apiUser.email,
+        emailVerified: apiUser.emailVerified || apiUser.email_verified || false
+    };
+    console.log('Normalized user data:', normalized);
+    return normalized;
+};
+
 // Extends the return type of the login function to include the verification status,
 // allowing the UI to make smarter decisions without relying on a null value.
 export type LoginResult = {
@@ -42,7 +56,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             if (token) {
                 try {
                     const authenticatedUser = await api.getAuthenticatedUser();
-                    setUser(authenticatedUser);
+                    const normalizedUser = normalizeUserData(authenticatedUser);
+                    setUser(normalizedUser);
                 } catch (error) {
                     console.error("Failed to fetch authenticated user", error);
                     // Clear invalid token and user state
@@ -60,9 +75,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const response = await api.login({ email, password: pass });
             localStorage.setItem('token', response.accessToken);
             const authenticatedUser = await api.getAuthenticatedUser();
-            setUser(authenticatedUser);
+            const normalizedUser = normalizeUserData(authenticatedUser);
+            setUser(normalizedUser);
             // For login, we skip email verification check - always consider verified
-            return { user: authenticatedUser, isVerified: true };
+            return { user: normalizedUser, isVerified: true };
         } catch (error) {
             console.error("Login failed:", error);
             return null;

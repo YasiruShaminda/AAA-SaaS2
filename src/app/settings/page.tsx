@@ -67,10 +67,10 @@ const OrganizationRow = ({ org, onSelect, onAfterDelete }: { org: Organization, 
                  {selectedOrganization?.id === org.id && <CheckCircle className="size-5 text-primary" />}
             </TableCell>
             <TableCell className="font-medium">{org.name}</TableCell>
-            <TableCell>{org.subscribers.toLocaleString()}</TableCell>
+            <TableCell>{(org.subscribers || 0).toLocaleString()}</TableCell>
             <TableCell>
-                <Badge variant={org.status === 'Active' ? 'default' : 'secondary'} className={getStatusBadgeClass(org.status)}>
-                    {org.status}
+                <Badge variant={(org.status || 'Inactive') === 'Active' ? 'default' : 'secondary'} className={getStatusBadgeClass(org.status || 'Inactive')}>
+                    {org.status || 'Inactive'}
                 </Badge>
             </TableCell>
             <TableCell className="text-right">
@@ -385,7 +385,7 @@ export default function SettingsPage() {
                                                                             <Checkbox id={`org-access-${user.id}-${org.id}`} defaultChecked={user.orgAccess > 0 && (org.id === 'org-1' || org.id === 'org-2')} />
                                                                             <div className="flex flex-col">
                                                                                 <Label htmlFor={`org-access-${user.id}-${org.id}`} className="font-medium">{org.name}</Label>
-                                                                                <span className="text-xs text-muted-foreground">{org.description}</span>
+                                                                                <span className="text-xs text-muted-foreground">{org.description || 'No description'}</span>
                                                                             </div>
                                                                         </div>
                                                                     ))}
