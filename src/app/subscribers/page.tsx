@@ -26,7 +26,7 @@ export default function SubscribersPage() {
         groups, 
         profiles,
         addSubscriber,
-        // updateSubscriber,
+        updateSubscriber,
         deleteSubscriber,
         addProduct,
         deleteProduct,
@@ -45,6 +45,8 @@ export default function SubscribersPage() {
     const [showProjectButton, setShowProjectButton] = useState(false);
     const [editingGroup, setEditingGroup] = useState<Group | null>(null);
     const [isEditGroupModalOpen, setIsEditGroupModalOpen] = useState(false);
+    const [editingSubscriber, setEditingSubscriber] = useState<Subscriber | null>(null);
+    const [isEditSubscriberModalOpen, setIsEditSubscriberModalOpen] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -108,6 +110,16 @@ export default function SubscribersPage() {
     const handleCloseEditModal = () => {
         setEditingGroup(null);
         setIsEditGroupModalOpen(false);
+    };
+
+    const handleEditSubscriber = (subscriber: Subscriber) => {
+        setEditingSubscriber(subscriber);
+        setIsEditSubscriberModalOpen(true);
+    };
+
+    const handleCloseEditSubscriberModal = () => {
+        setEditingSubscriber(null);
+        setIsEditSubscriberModalOpen(false);
     };
 
     return (
@@ -192,7 +204,7 @@ export default function SubscribersPage() {
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal /></Button></DropdownMenuTrigger>
                                                         <DropdownMenuContent>
-                                                            <DropdownMenuItem><Pencil className="mr-2" /> Edit</DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => handleEditSubscriber(subscriber)}><Pencil className="mr-2" /> Edit</DropdownMenuItem>
                                                             <AlertDialog>
                                                                 <AlertDialogTrigger asChild>
                                                                     <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2" /> Delete</DropdownMenuItem>
@@ -445,6 +457,16 @@ export default function SubscribersPage() {
                     onUpdate={updateGroup}
                 />
             )}
+
+            {/* Edit Subscriber Modal */}
+            {editingSubscriber && (
+                <EditSubscriberDialog 
+                    subscriber={editingSubscriber} 
+                    isOpen={isEditSubscriberModalOpen} 
+                    onClose={handleCloseEditSubscriberModal} 
+                    onUpdate={updateSubscriber}
+                />
+            )}
         </div>
     );
 }
@@ -623,17 +645,54 @@ function AddSubscriberDialog() {
     const [productId, setProductId] = useState('');
     const [groupId, setGroupId] = useState('');
     const [isOpen, setIsOpen] = useState(false);
+    const [errors, setErrors] = useState({ username: false, password: false });
+
+    const validateForm = () => {
+        const newErrors = {
+            username: !username.trim(),
+            password: !password.trim()
+        };
+        setErrors(newErrors);
+        return !newErrors.username && !newErrors.password;
+    };
 
     const handleSubmit = async () => {
-        const subscriberData = {
-            username,
-            fullname,
+        if (!validateForm()) return;
+
+        const subscriberData: any = {
+            username: username.trim(),
+            fullname: fullname.trim(),
             pass: password,
-            product_id: parseInt(productId),
-            group_id: parseInt(groupId),
         };
+
+        // Only add product if selected
+        if (productId) {
+            subscriberData.product_id = parseInt(productId);
+        }
+
+        // Only add group if selected
+        if (groupId) {
+            subscriberData.group_id = parseInt(groupId);
+        }
+
         await addSubscriber(subscriberData);
+        
+        // Reset form
+        setUsername('');
+        setFullname('');
+        setPassword('');
+        setProductId('');
+        setGroupId('');
+        setErrors({ username: false, password: false });
         setIsOpen(false);
+    };
+
+    const handleProductChange = (value: string) => {
+        setProductId(value === 'none' ? '' : value);
+    };
+
+    const handleGroupChange = (value: string) => {
+        setGroupId(value === 'none' ? '' : value);
     };
 
     return (
@@ -644,32 +703,75 @@ function AddSubscriberDialog() {
             </DialogHeader>
             <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="s-username" className="text-right">Username</Label>
-                    <Input id="s-username" value={username} onChange={(e) => setUsername(e.target.value)} className="col-span-3" />
+                    <Label htmlFor="s-username" className="text-right">
+                        Username <span className="text-red-500">*</span>
+                    </Label>
+                    <Input 
+                        id="s-username" 
+                        value={username} 
+                        onChange={(e) => {
+                            setUsername(e.target.value);
+                            if (errors.username && e.target.value.trim()) {
+                                setErrors(prev => ({ ...prev, username: false }));
+                            }
+                        }}
+                        className={`col-span-3 ${errors.username ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                        placeholder="Enter username"
+                    />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="s-fullname" className="text-right">Full Name</Label>
-                    <Input id="s-fullname" value={fullname} onChange={(e) => setFullname(e.target.value)} className="col-span-3" />
+                    <Input 
+                        id="s-fullname" 
+                        value={fullname} 
+                        onChange={(e) => setFullname(e.target.value)} 
+                        className="col-span-3" 
+                        placeholder="Enter full name"
+                    />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="s-password" className="text-right">Password</Label>
-                    <Input id="s-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="col-span-3" />
+                    <Label htmlFor="s-password" className="text-right">
+                        Password <span className="text-red-500">*</span>
+                    </Label>
+                    <Input 
+                        id="s-password" 
+                        type="password" 
+                        value={password} 
+                        onChange={(e) => {
+                            setPassword(e.target.value);
+                            if (errors.password && e.target.value.trim()) {
+                                setErrors(prev => ({ ...prev, password: false }));
+                            }
+                        }}
+                        className={`col-span-3 ${errors.password ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                        placeholder="Enter password"
+                    />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="s-product" className="text-right">Product</Label>
-                    <Select onValueChange={setProductId}>
-                        <SelectTrigger className="col-span-3"><SelectValue placeholder="Select a product" /></SelectTrigger>
+                    <Select value={productId} onValueChange={handleProductChange}>
+                        <SelectTrigger className="col-span-3">
+                            <SelectValue placeholder="Select a product (optional)" />
+                        </SelectTrigger>
                         <SelectContent>
-                            {products.map(p => <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>)}
+                            <SelectItem value="none">None (deselect)</SelectItem>
+                            {products.map(p => (
+                                <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="s-group" className="text-right">Group</Label>
-                    <Select onValueChange={setGroupId}>
-                        <SelectTrigger className="col-span-3"><SelectValue placeholder="Select a group" /></SelectTrigger>
+                    <Select value={groupId} onValueChange={handleGroupChange}>
+                        <SelectTrigger className="col-span-3">
+                            <SelectValue placeholder="Select a group (optional)" />
+                        </SelectTrigger>
                         <SelectContent>
-                            {groups.map(g => <SelectItem key={g.id} value={g.id.toString()}>{g.name}</SelectItem>)}
+                            <SelectItem value="none">None (deselect)</SelectItem>
+                            {groups.map(g => (
+                                <SelectItem key={g.id} value={g.id.toString()}>{g.name}</SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
                 </div>
@@ -678,6 +780,189 @@ function AddSubscriberDialog() {
                 <Button onClick={handleSubmit}>Save Subscriber</Button>
             </DialogFooter>
         </DialogContent>
+    );
+}
+
+function EditSubscriberDialog({ subscriber, isOpen, onClose, onUpdate }: { subscriber: Subscriber, isOpen: boolean, onClose: () => void, onUpdate: (subscriber: Subscriber) => Promise<Subscriber | null> }) {
+    const { products, groups } = useOrganization();
+    const [username, setUsername] = useState(subscriber.username);
+    const [fullname, setFullname] = useState(subscriber.fullname);
+    const [password, setPassword] = useState(subscriber.pass);
+    const [productId, setProductId] = useState(subscriber.product_id?.toString() || '');
+    const [groupId, setGroupId] = useState(subscriber.group_id?.toString() || '');
+    const [isUpdating, setIsUpdating] = useState(false);
+    const [errors, setErrors] = useState({ username: false, password: false });
+
+    // Reset form when subscriber changes
+    useEffect(() => {
+        setUsername(subscriber.username);
+        setFullname(subscriber.fullname);
+        setPassword(subscriber.pass);
+        setProductId(subscriber.product_id?.toString() || '');
+        setGroupId(subscriber.group_id?.toString() || '');
+        setErrors({ username: false, password: false });
+    }, [subscriber]);
+
+    const validateForm = () => {
+        const newErrors = {
+            username: !username.trim(),
+            password: !password.trim()
+        };
+        setErrors(newErrors);
+        return !newErrors.username && !newErrors.password;
+    };
+
+    const handleSubmit = async () => {
+        if (!validateForm()) return;
+        
+        setIsUpdating(true);
+        try {
+            const updatedSubscriber: any = {
+                ...subscriber,
+                username: username.trim(),
+                fullname: fullname.trim(),
+                pass: password,
+            };
+
+            // Handle product assignment
+            if (productId && productId !== 'none') {
+                const selectedProduct = products.find(p => p.id.toString() === productId);
+                updatedSubscriber.product_id = parseInt(productId);
+                updatedSubscriber.product = selectedProduct?.name || '';
+            } else {
+                updatedSubscriber.product_id = null;
+                updatedSubscriber.product = '';
+            }
+
+            // Handle group assignment
+            if (groupId && groupId !== 'none') {
+                const selectedGroup = groups.find(g => g.id.toString() === groupId);
+                updatedSubscriber.group_id = parseInt(groupId);
+                updatedSubscriber.group = selectedGroup?.name || '';
+            } else {
+                updatedSubscriber.group_id = null;
+                updatedSubscriber.group = '';
+            }
+
+            await onUpdate(updatedSubscriber);
+            onClose();
+        } catch (error) {
+            console.error('Failed to update subscriber:', error);
+        } finally {
+            setIsUpdating(false);
+        }
+    };
+
+    const handleCancel = () => {
+        setUsername(subscriber.username);
+        setFullname(subscriber.fullname);
+        setPassword(subscriber.pass);
+        setProductId(subscriber.product_id?.toString() || '');
+        setGroupId(subscriber.group_id?.toString() || '');
+        setErrors({ username: false, password: false });
+        onClose();
+    };
+
+    const handleProductChange = (value: string) => {
+        setProductId(value === 'none' ? '' : value);
+    };
+
+    const handleGroupChange = (value: string) => {
+        setGroupId(value === 'none' ? '' : value);
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={handleCancel}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Edit Subscriber</DialogTitle>
+                    <DialogDescription>Update subscriber details and assignments.</DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="edit-s-username" className="text-right">
+                            Username <span className="text-red-500">*</span>
+                        </Label>
+                        <Input 
+                            id="edit-s-username" 
+                            value={username} 
+                            onChange={(e) => {
+                                setUsername(e.target.value);
+                                if (errors.username && e.target.value.trim()) {
+                                    setErrors(prev => ({ ...prev, username: false }));
+                                }
+                            }}
+                            className={`col-span-3 ${errors.username ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                            placeholder="Enter username"
+                        />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="edit-s-fullname" className="text-right">Full Name</Label>
+                        <Input 
+                            id="edit-s-fullname" 
+                            value={fullname} 
+                            onChange={(e) => setFullname(e.target.value)} 
+                            className="col-span-3" 
+                            placeholder="Enter full name"
+                        />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="edit-s-password" className="text-right">
+                            Password <span className="text-red-500">*</span>
+                        </Label>
+                        <Input 
+                            id="edit-s-password" 
+                            type="password" 
+                            value={password} 
+                            onChange={(e) => {
+                                setPassword(e.target.value);
+                                if (errors.password && e.target.value.trim()) {
+                                    setErrors(prev => ({ ...prev, password: false }));
+                                }
+                            }}
+                            className={`col-span-3 ${errors.password ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                            placeholder="Enter password"
+                        />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="edit-s-product" className="text-right">Product</Label>
+                        <Select value={productId} onValueChange={handleProductChange}>
+                            <SelectTrigger className="col-span-3">
+                                <SelectValue placeholder="Select a product (optional)" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">None (deselect)</SelectItem>
+                                {products.map(p => (
+                                    <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="edit-s-group" className="text-right">Group</Label>
+                        <Select value={groupId} onValueChange={handleGroupChange}>
+                            <SelectTrigger className="col-span-3">
+                                <SelectValue placeholder="Select a group (optional)" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">None (deselect)</SelectItem>
+                                {groups.map(g => (
+                                    <SelectItem key={g.id} value={g.id.toString()}>{g.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={handleCancel} disabled={isUpdating}>
+                        Cancel
+                    </Button>
+                    <Button onClick={handleSubmit} disabled={isUpdating || !username.trim() || !password.trim()}>
+                        {isUpdating ? 'Updating...' : 'Update Subscriber'}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }
 
