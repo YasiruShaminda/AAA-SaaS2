@@ -35,16 +35,9 @@ export function AppHeader() {
   const { user } = useAuth();
   const title = pageTitles[pathname] || 'Monyfi SaaS';
 
-  // Debug: Log user data to see what's actually being received
-  console.log('AppHeader user data:', user);
-  console.log('User name specifically:', user?.name);
-  console.log('User object keys:', user ? Object.keys(user) : 'No user');
-
   // Handle different possible field names from the API
   const userAny = user as any;
   const displayName = user?.name || userAny?.userName || userAny?.username || userAny?.fullName || userAny?.full_name || userAny?.display_name || 'User';
-  
-  console.log('Final display name:', displayName);
 
   // Generate initials from user name
   const getInitials = (name: string) => {
@@ -58,7 +51,22 @@ export function AppHeader() {
   };
 
   const userInitials = getInitials(displayName);
-  console.log('User initials:', userInitials);
+
+  // Generate color based on user name for variety
+  const getAvatarColor = (name: string) => {
+    const colors = [
+      'bg-gradient-to-br from-blue-950 to-blue-1000 text-blue-700 ring-blue-500/50',
+      'bg-gradient-to-br from-emerald-950 to-emerald-1000 text-emerald-700 ring-emerald-500/50',
+      'bg-gradient-to-br from-purple-950 to-purple-1000 text-purple-700 ring-purple-500/50',
+      'bg-gradient-to-br from-amber-950 to-amber-1000 text-amber-700 ring-amber-500/50',
+      'bg-gradient-to-br from-rose-950 to-rose-1000 text-rose-700 ring-rose-500/50',
+      'bg-gradient-to-br from-cyan-950 to-cyan-1000 text-cyan-700 ring-cyan-500/50',
+    ];
+    const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return colors[hash % colors.length];
+  };
+
+  const avatarColorClass = getAvatarColor(displayName);
 
   return (
     <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between border-b bg-background/80 px-4 backdrop-blur-md sm:px-6">
@@ -81,9 +89,9 @@ export function AppHeader() {
           <span className="sr-only">Notifications</span>
         </Button>
         <Link href="/profile" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src="/profile-pic.png" alt="User Profile Picture" />
-            <AvatarFallback className="text-sm font-semibold">
+          <Avatar className={`h-8 w-8 ring-2 ${avatarColorClass.split(' ').find(c => c.startsWith('ring-'))}`}>
+            {/* Remove AvatarImage to always show initials */}
+            <AvatarFallback className={`text-sm font-semibold border border-slate-700 ${avatarColorClass.split(' ').filter(c => !c.startsWith('ring-')).join(' ')}`}>
               {userInitials}
             </AvatarFallback>
           </Avatar>

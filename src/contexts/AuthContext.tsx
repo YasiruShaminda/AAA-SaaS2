@@ -14,16 +14,13 @@ export type User = {
 
 // Helper function to normalize user data from API
 const normalizeUserData = (apiUser: any): User => {
-    console.log('Raw API user data:', apiUser);
-    const normalized = {
+    return {
         id: apiUser.id,
         // API returns 'userName' (with capital N), so check that first
         name: apiUser.userName || apiUser.username || apiUser.name || apiUser.fullName || apiUser.full_name || apiUser.display_name || 'User',
         email: apiUser.email,
         emailVerified: apiUser.emailVerified || apiUser.email_verified || false
     };
-    console.log('Normalized user data:', normalized);
-    return normalized;
 };
 
 // Extends the return type of the login function to include the verification status,

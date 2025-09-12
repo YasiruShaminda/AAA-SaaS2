@@ -28,13 +28,29 @@ export default function ProfilePage() {
 
   const userInitials = getInitials(displayName);
 
+  // Generate color based on user name for variety
+  const getAvatarColor = (name: string) => {
+    const colors = [
+      'bg-gradient-to-br from-blue-950 to-blue-1000 text-blue-700 ring-blue-500/50',
+      'bg-gradient-to-br from-emerald-950 to-emerald-1000 text-emerald-700 ring-emerald-500/50',
+      'bg-gradient-to-br from-purple-950 to-purple-1000 text-purple-700 ring-purple-500/50',
+      'bg-gradient-to-br from-amber-950 to-amber-1000 text-amber-700 ring-amber-500/50',
+      'bg-gradient-to-br from-rose-950 to-rose-1000 text-rose-700 ring-rose-500/50',
+      'bg-gradient-to-br from-cyan-950 to-cyan-1000 text-cyan-700 ring-cyan-500/50',
+    ];
+    const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return colors[hash % colors.length];
+  };
+
+  const avatarColorClass = getAvatarColor(displayName);
+
   return (
     <div className="flex h-full min-h-[calc(100vh-8rem)] items-center justify-center">
       <Card className="w-full max-w-md glass-card">
         <CardHeader className="items-center text-center">
-            <Avatar className="h-24 w-24 mb-4">
-                <AvatarImage src="/profile-pic.png" alt="User Profile Picture" />
-                <AvatarFallback className="text-lg font-semibold">
+            <Avatar className={`h-24 w-24 mb-4 ring-4 ${avatarColorClass.split(' ').find(c => c.startsWith('ring-'))}`}>
+                {/* Remove AvatarImage to always show initials for now */}
+                <AvatarFallback className={`text-4xl font-medium border-2 border-slate-00 ${avatarColorClass.split(' ').filter(c => !c.startsWith('ring-')).join(' ')}`}>
                     {userInitials}
                 </AvatarFallback>
             </Avatar>
