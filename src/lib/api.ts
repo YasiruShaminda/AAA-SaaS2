@@ -1,6 +1,6 @@
 import { Organization, Subscriber, Product, Group, Project } from '@/contexts/OrganizationContext';
 
-const API_BASE_URL = '/api/v1';
+const API_BASE_URL = 'http://54.205.5.145:3500/v1';
 
 async function request<T>(
   endpoint: string,
@@ -19,11 +19,16 @@ async function request<T>(
   });
 
   if (!response.ok) {
-    // Handle 401 Unauthorized - token is invalid or expired
+    // Handle 401 Unauthorized - but don't redirect during login attempts
     if (response.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
-      throw new Error('Session expired. Please login again.');
+      // Only redirect and clear token if this is not a login attempt
+      // Login attempts to /auth/login should not trigger automatic redirects
+      if (!endpoint.includes('/auth/login')) {
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+        throw new Error('Session expired. Please login again.');
+      }
+      // For login attempts, let the error bubble up normally without redirect
     }
 
     let errorMessage = 'API request failed';

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -45,41 +44,65 @@ export default function LoginPage() {
         try {
             const result = await login(values.email, values.password);
 
-            if (result) {
-                // Skip email verification check for login - only check during registration
-                // Check if user has organizations
-                try {
-                    const userOrganizations = await api.getOrganizations(result.user.id);
-                    
-                    // Ensure we have a valid array and it has organizations
-                    const orgsArray = Array.isArray(userOrganizations) ? userOrganizations : [];
-                    
-                    if (orgsArray.length > 0) {
-                        // User has organizations, redirect to organizations page
-                        router.push('/organizations');
-                    } else {
-                        // User has no organizations, redirect to create new organization
-                        router.push('/organizations/new');
-                    }
-                } catch (error) {
-                    console.error("Failed to fetch organizations:", error);
-                    // Fallback to create new organization page if API call fails
+            // Login successful, check if user has organizations
+            try {
+                const userOrganizations = await api.getOrganizations(result.user.id);
+                
+                // Ensure we have a valid array and it has organizations
+                const orgsArray = Array.isArray(userOrganizations) ? userOrganizations : [];
+                
+                if (orgsArray.length > 0) {
+                    // User has organizations, redirect to organizations page
+                    router.push('/organizations');
+                } else {
+                    // User has no organizations, redirect to create new organization
                     router.push('/organizations/new');
                 }
-            } else {
-                toast({
-                    variant: "destructive",
-                    title: "Login Failed",
-                    description: "Invalid email or password.",
-                });
+            } catch (error) {
+                console.error("Failed to fetch organizations:", error);
+                // Fallback to create new organization page if API call fails
+                router.push('/organizations/new');
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Login error:", error);
+            
+            // Determine the appropriate error message based on the error
+            let errorMessage = "An error occurred during login. Please try again.";
+            
+            if (error?.message) {
+                // If the error message contains specific authentication failure indicators
+                if (error.message.includes('401') || 
+                    error.message.includes('Unauthorized') ||
+                    error.message.includes('Invalid credentials') ||
+                    error.message.includes('authentication failed') ||
+                    error.message.includes('incorrect') ||
+                    error.message.includes('invalid')) {
+                    errorMessage = "Invalid email or password. Please check your credentials and try again.";
+                } else if (error.message.includes('Network') || 
+                          error.message.includes('fetch') ||
+                          error.message.includes('Failed to fetch')) {
+                    errorMessage = "Network error. Please check your connection and try again.";
+                } else if (error.message.includes('500') || 
+                          error.message.includes('Internal Server Error')) {
+                    errorMessage = "Server error. Please try again later.";
+                } else {
+                    // Use the actual error message from the API
+                    errorMessage = error.message;
+                }
+            }
+            
             toast({
                 variant: "destructive",
                 title: "Login Failed", 
-                description: "An error occurred during login. Please try again.",
+                description: errorMessage,
+                duration: 5000, // Show toast for 5 seconds instead of default
             });
+            
+            // Clear password field and focus it for better UX
+            form.setValue('password', '');
+            setTimeout(() => {
+                form.setFocus('password');
+            }, 100);
         } finally {
             setIsLogging(false);
         }

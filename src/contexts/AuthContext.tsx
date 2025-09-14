@@ -33,7 +33,7 @@ export type LoginResult = {
 
 interface AuthContextType {
     user: User | null;
-    login: (email: string, pass: string) => Promise<LoginResult | null>;
+    login: (email: string, pass: string) => Promise<LoginResult>;
     register: (username: string, email: string, pass: string) => Promise<User>;
     logout: () => void;
     sendVerificationEmail: (email: string) => void;
@@ -67,7 +67,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         loadUser();
     }, []);
 
-    const login = async (email: string, pass: string): Promise<LoginResult | null> => {
+    const login = async (email: string, pass: string): Promise<LoginResult> => {
         try {
             const response = await api.login({ email, password: pass });
             localStorage.setItem('token', response.accessToken);
@@ -78,7 +78,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             return { user: normalizedUser, isVerified: true };
         } catch (error) {
             console.error("Login failed:", error);
-            return null;
+            // Re-throw the error so the login page can handle it properly
+            throw error;
         }
     };
     
