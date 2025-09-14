@@ -88,6 +88,9 @@ interface OrganizationContextType {
     addDefaultDataForNewOrg: (organization?: Organization) => Promise<void>;
     getProjectsForGroup: (groupName: string) => Project[];
     getSubscriberCountForGroup: (groupId: number) => number;
+    refreshOrganizationData: () => Promise<void>;
+    getProductNameById: (productId: number | null | undefined) => string;
+    getGroupNameById: (groupId: number | null | undefined) => string;
 }
 
 const OrganizationContext = createContext<OrganizationContextType | undefined>(undefined);
@@ -105,6 +108,19 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
     const [groups, setGroups] = useState<Group[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
     const [profiles, setProfiles] = useState<Profile[]>([]);
+
+    // Debug: Monitor state changes
+    useEffect(() => {
+        console.log('Subscribers state changed:', subscribers.length, subscribers);
+    }, [subscribers]);
+
+    useEffect(() => {
+        console.log('Products state changed:', products.length, products);
+    }, [products]);
+
+    useEffect(() => {
+        console.log('Groups state changed:', groups.length, groups);
+    }, [groups]);
 
 
     const loadOrganizations = useCallback(async () => {
@@ -157,24 +173,106 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
                     // Try to load subscribers first as it's most likely to exist
                     try {
                         const subscribersData = await api.getSubscribers(selectedOrganization.id);
-                        setSubscribers(Array.isArray(subscribersData) ? subscribersData : []);
+                        console.log('Raw subscribers API response:', subscribersData);
+                        console.log('Type of subscribers data:', typeof subscribersData);
+                        console.log('Is array:', Array.isArray(subscribersData));
+                        
+                        // Handle various response formats
+                        let processedSubscribers: Subscriber[] = [];
+                        if (Array.isArray(subscribersData)) {
+                            processedSubscribers = subscribersData;
+                        } else if (subscribersData && typeof subscribersData === 'object') {
+                            const data = subscribersData as any;
+                            if (data.data && Array.isArray(data.data)) {
+                                processedSubscribers = data.data;
+                            } else if (data.subscribers && Array.isArray(data.subscribers)) {
+                                processedSubscribers = data.subscribers;
+                            } else {
+                                console.warn('Unexpected subscribers data format:', subscribersData);
+                            }
+                        } else {
+                            console.warn('Unexpected subscribers data format:', subscribersData);
+                        }
+                        
+                        console.log('Processed subscribers:', processedSubscribers);
+                        console.log('Processed subscribers length:', processedSubscribers.length);
+                        
+                        // Validate each subscriber has required fields
+                        const validSubscribers = processedSubscribers.filter(sub => 
+                            sub && typeof sub === 'object' && sub.id !== undefined
+                        );
+                        
+                        console.log('Valid subscribers after filtering:', validSubscribers.length);
+                        if (validSubscribers.length !== processedSubscribers.length) {
+                            console.warn('Some subscribers were filtered out due to missing required fields');
+                        }
+                        
+                        setSubscribers(validSubscribers);
+                        console.log('Subscribers set to state:', validSubscribers);
                     } catch (error) {
                         console.warn("Failed to load subscribers:", error);
+                        setSubscribers([]);
                     }
                     
                     // Try other endpoints individually
                     try {
                         const productsData = await api.getProducts(selectedOrganization.id);
-                        setProducts(Array.isArray(productsData) ? productsData : []);
+                        console.log('Raw products API response:', productsData);
+                        
+                        // Handle various response formats
+                        let processedProducts: Product[] = [];
+                        if (Array.isArray(productsData)) {
+                            processedProducts = productsData;
+                        } else if (productsData && typeof productsData === 'object') {
+                            const data = productsData as any;
+                            if (data.data && Array.isArray(data.data)) {
+                                processedProducts = data.data;
+                            } else if (data.products && Array.isArray(data.products)) {
+                                processedProducts = data.products;
+                            } else {
+                                console.warn('Unexpected products data format:', productsData);
+                            }
+                        }
+                        
+                        const validProducts = processedProducts.filter(prod => 
+                            prod && typeof prod === 'object' && prod.id !== undefined
+                        );
+                        
+                        setProducts(validProducts);
+                        console.log('Products set to state:', validProducts);
                     } catch (error) {
                         console.warn("Failed to load products:", error);
+                        setProducts([]);
                     }
                     
                     try {
                         const groupsData = await api.getGroups(selectedOrganization.id);
-                        setGroups(Array.isArray(groupsData) ? groupsData : []);
+                        console.log('Raw groups API response:', groupsData);
+                        
+                        // Handle various response formats
+                        let processedGroups: Group[] = [];
+                        if (Array.isArray(groupsData)) {
+                            processedGroups = groupsData;
+                        } else if (groupsData && typeof groupsData === 'object') {
+                            const data = groupsData as any;
+                            if (data.data && Array.isArray(data.data)) {
+                                processedGroups = data.data;
+                            } else if (data.groups && Array.isArray(data.groups)) {
+                                processedGroups = data.groups;
+                            } else {
+                                console.warn('Unexpected groups data format:', groupsData);
+                            }
+                        }
+                        
+                        const validGroups = processedGroups.filter(group => 
+                            group && typeof group === 'object' && group.id !== undefined
+                        );
+                        
+                        setGroups(validGroups);
+                        console.log('Groups set to state:', validGroups);
                     } catch (error) {
                         console.warn("Failed to load groups:", error);
+                        setGroups([]);
                     }
                     
                     try {
@@ -407,9 +505,24 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
     const addSubscriber = async (subscriber: Partial<Subscriber>): Promise<Subscriber | null> => {
         if (selectedOrganization) {
             try {
+                console.log('Creating subscriber with data:', subscriber);
                 const newSubscriber = await api.createSubscriber(selectedOrganization.id, subscriber);
-                setSubscribers(prev => [...prev, newSubscriber]);
-                return newSubscriber;
+                console.log('Subscriber created by API:', newSubscriber);
+                
+                // Validate the created subscriber
+                if (newSubscriber && typeof newSubscriber === 'object' && newSubscriber.id !== undefined) {
+                    setSubscribers(prev => {
+                        const updated = [...prev, newSubscriber];
+                        console.log('Updated subscribers state:', updated);
+                        return updated;
+                    });
+                    
+                    console.log('Subscriber added to state successfully');
+                    return newSubscriber;
+                } else {
+                    console.error('Invalid subscriber data returned from API:', newSubscriber);
+                    return null;
+                }
             } catch (error) {
                 console.error("Failed to create subscriber:", error);
                 return null;
@@ -446,9 +559,24 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
     const addProduct = async (product: Partial<Product>): Promise<Product | null> => {
         if (selectedOrganization) {
             try {
+                console.log('Creating product with data:', product);
                 const newProduct = await api.createProduct(selectedOrganization.id, product);
-                setProducts(prev => [...prev, newProduct]);
-                return newProduct;
+                console.log('Product created by API:', newProduct);
+                
+                // Validate the created product
+                if (newProduct && typeof newProduct === 'object' && newProduct.id !== undefined) {
+                    setProducts(prev => {
+                        const updated = [...prev, newProduct];
+                        console.log('Updated products state:', updated);
+                        return updated;
+                    });
+                    
+                    console.log('Product added to state successfully');
+                    return newProduct;
+                } else {
+                    console.error('Invalid product data returned from API:', newProduct);
+                    return null;
+                }
             } catch (error) {
                 console.error("Failed to create product:", error);
                 return null;
@@ -528,7 +656,163 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const getSubscriberCountForGroup = (groupId: number): number => {
-        return subscribers.filter(subscriber => subscriber.group_id === groupId).length;
+        console.log(`Getting subscriber count for group ${groupId}`);
+        console.log(`All subscribers available:`, subscribers.length);
+        console.log(`Subscribers data:`, subscribers.map(s => ({ 
+            id: s.id, 
+            username: s.username, 
+            group_id: s.group_id,
+            group_id_type: typeof s.group_id 
+        })));
+        console.log(`Looking for group_id:`, groupId, 'type:', typeof groupId);
+        
+        const matching = subscribers.filter(subscriber => {
+            const match = subscriber.group_id === groupId;
+            console.log(`Subscriber ${subscriber.username} (group_id: ${subscriber.group_id}) matches group ${groupId}:`, match);
+            return match;
+        });
+        
+        console.log(`Found ${matching.length} subscribers for group ${groupId}`);
+        return matching.length;
+    };
+
+    const getProductNameById = (productId: number | null | undefined): string => {
+        console.log(`Getting product name for ID: ${productId}`);
+        console.log(`Available products:`, products.map(p => ({ id: p.id, name: p.name })));
+        
+        if (!productId) {
+            console.log(`No product ID provided`);
+            return '';
+        }
+        
+        const product = products.find(p => p.id === productId);
+        const name = product?.name || '';
+        console.log(`Found product name: "${name}" for ID ${productId}`);
+        return name;
+    };
+
+    const getGroupNameById = (groupId: number | null | undefined): string => {
+        console.log(`Getting group name for ID: ${groupId}`);
+        console.log(`Available groups:`, groups.map(g => ({ id: g.id, name: g.name })));
+        
+        if (!groupId) {
+            console.log(`No group ID provided`);
+            return '';
+        }
+        
+        const group = groups.find(g => g.id === groupId);
+        const name = group?.name || '';
+        console.log(`Found group name: "${name}" for ID ${groupId}`);
+        return name;
+    };
+
+    const refreshOrganizationData = async () => {
+        if (selectedOrganization) {
+            console.log('Manually refreshing organization data...');
+            setIsOrgDataLoaded(false);
+            
+            // Clear existing data
+            setSubscribers([]);
+            setProducts([]);
+            setGroups([]);
+            setProjects([]);
+            
+            try {
+                // Load all data fresh from API
+                console.log(`Refreshing data for organization: ${selectedOrganization.id}`);
+                
+                try {
+                    const subscribersData = await api.getSubscribers(selectedOrganization.id);
+                    console.log('Refreshed subscribers API response:', subscribersData);
+                    
+                    // Handle various response formats
+                    let processedSubscribers: Subscriber[] = [];
+                    if (Array.isArray(subscribersData)) {
+                        processedSubscribers = subscribersData;
+                    } else if (subscribersData && typeof subscribersData === 'object') {
+                        const data = subscribersData as any;
+                        if (data.data && Array.isArray(data.data)) {
+                            processedSubscribers = data.data;
+                        } else if (data.subscribers && Array.isArray(data.subscribers)) {
+                            processedSubscribers = data.subscribers;
+                        }
+                    }
+                    
+                    const validSubscribers = processedSubscribers.filter(sub => 
+                        sub && typeof sub === 'object' && sub.id !== undefined
+                    );
+                    
+                    setSubscribers(validSubscribers);
+                } catch (error) {
+                    console.warn("Failed to refresh subscribers:", error);
+                }
+                
+                try {
+                    const productsData = await api.getProducts(selectedOrganization.id);
+                    console.log('Refreshed products API response:', productsData);
+                    
+                    // Handle various response formats
+                    let processedProducts: Product[] = [];
+                    if (Array.isArray(productsData)) {
+                        processedProducts = productsData;
+                    } else if (productsData && typeof productsData === 'object') {
+                        const data = productsData as any;
+                        if (data.data && Array.isArray(data.data)) {
+                            processedProducts = data.data;
+                        } else if (data.products && Array.isArray(data.products)) {
+                            processedProducts = data.products;
+                        }
+                    }
+                    
+                    const validProducts = processedProducts.filter(prod => 
+                        prod && typeof prod === 'object' && prod.id !== undefined
+                    );
+                    
+                    setProducts(validProducts);
+                } catch (error) {
+                    console.warn("Failed to refresh products:", error);
+                }
+                
+                try {
+                    const groupsData = await api.getGroups(selectedOrganization.id);
+                    console.log('Refreshed groups API response:', groupsData);
+                    
+                    // Handle various response formats
+                    let processedGroups: Group[] = [];
+                    if (Array.isArray(groupsData)) {
+                        processedGroups = groupsData;
+                    } else if (groupsData && typeof groupsData === 'object') {
+                        const data = groupsData as any;
+                        if (data.data && Array.isArray(data.data)) {
+                            processedGroups = data.data;
+                        } else if (data.groups && Array.isArray(data.groups)) {
+                            processedGroups = data.groups;
+                        }
+                    }
+                    
+                    const validGroups = processedGroups.filter(group => 
+                        group && typeof group === 'object' && group.id !== undefined
+                    );
+                    
+                    setGroups(validGroups);
+                } catch (error) {
+                    console.warn("Failed to refresh groups:", error);
+                }
+                
+                try {
+                    const projectsData = await api.getProjects(selectedOrganization.id);
+                    console.log('Refreshed projects API response:', projectsData);
+                    setProjects(Array.isArray(projectsData) ? projectsData : []);
+                } catch (error) {
+                    console.warn("Failed to refresh projects:", error);
+                }
+                
+            } catch (error) {
+                console.error("Failed to refresh organization data:", error);
+            } finally {
+                setIsOrgDataLoaded(true);
+            }
+        }
     };
 
     return (
@@ -542,7 +826,10 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
             addProject, updateProject, deleteProject,
             addDefaultDataForNewOrg,
             getProjectsForGroup,
-            getSubscriberCountForGroup
+            getSubscriberCountForGroup,
+            refreshOrganizationData,
+            getProductNameById,
+            getGroupNameById
         }}>
             {children}
         </OrganizationContext.Provider>

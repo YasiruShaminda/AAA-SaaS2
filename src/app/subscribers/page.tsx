@@ -5,7 +5,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Download, Trash2, Upload, Eye, EyeOff, PlusCircle, Search, MoreHorizontal, Pencil, SlidersHorizontal, Users2, Package, FolderKanban, ArrowRight } from 'lucide-react';
+import { Download, Trash2, Upload, Eye, EyeOff, PlusCircle, Search, MoreHorizontal, Pencil, SlidersHorizontal, Users2, Package, FolderKanban, ArrowRight, RefreshCw } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -35,7 +35,10 @@ export default function SubscribersPage() {
         deleteGroup,
         isOrgDataLoaded,
         getProjectsForGroup,
-        getSubscriberCountForGroup
+        getSubscriberCountForGroup,
+        refreshOrganizationData,
+        getProductNameById,
+        getGroupNameById
     } = useOrganization();
     const { user } = useAuth();
     const router = useRouter();
@@ -72,7 +75,7 @@ export default function SubscribersPage() {
 
     const downloadCsv = () => {
         if (subscribers.length === 0) return;
-        const headers = Object.keys(subscribers[0]).filter(h => h !== 'pass');
+        const headers = Object.keys(subscribers[0]).filter(h => h !== 'password');
         const csvContent = "data:text/csv;charset=utf-8,"
             + [headers.join(","), ...subscribers.map(row => headers.map(h => (row as any)[h]).join(","))].join("\n");
         const encodedUri = encodeURI(csvContent);
@@ -150,6 +153,7 @@ export default function SubscribersPage() {
                                        <Input placeholder="Search subscribers..." className="pl-10"/>
                                     </div>
                                     <Button variant="outline"><SlidersHorizontal className="mr-2" /> Filter</Button>
+                                    <Button variant="outline" onClick={refreshOrganizationData}><RefreshCw className="mr-2" /> Refresh</Button>
                                     <Dialog>
                                         <DialogTrigger asChild>
                                             <Button><PlusCircle className="mr-2" /> Add Subscriber</Button>
@@ -188,13 +192,27 @@ export default function SubscribersPage() {
                                                     </TableCell>
                                                 </TableRow>
                                             ))
-                                        ) : subscribers.map((subscriber) => (
+                                        ) : subscribers.map((subscriber) => {
+                                            const productName = getProductNameById(subscriber.product_id) || subscriber.product || 'No Product';
+                                            const groupName = getGroupNameById(subscriber.group_id) || subscriber.group || 'No Group';
+                                            
+                                            // Debug logging
+                                            console.log(`Subscriber ${subscriber.username}:`, {
+                                                product_id: subscriber.product_id,
+                                                product: subscriber.product,
+                                                productName,
+                                                group_id: subscriber.group_id,
+                                                group: subscriber.group,
+                                                groupName
+                                            });
+                                            
+                                            return (
                                             <TableRow key={subscriber.id}>
                                                 <TableCell className="font-medium">{subscriber.username}</TableCell>
-                                                <TableCell>{showPassword ? subscriber.pass : '********'}</TableCell>
+                                                <TableCell>{showPassword ? subscriber.password : '********'}</TableCell>
                                                 <TableCell>{subscriber.fullname}</TableCell>
-                                                <TableCell><Badge variant="outline">{subscriber.product}</Badge></TableCell>
-                                                <TableCell>{subscriber.group}</TableCell>
+                                                <TableCell><Badge variant="outline">{productName}</Badge></TableCell>
+                                                <TableCell>{groupName}</TableCell>
                                                 <TableCell>
                                                     <Badge variant={subscriber.status === 'Online' ? 'default' : 'secondary'} className={subscriber.status === 'Online' ? "bg-green-600/20 text-green-300 border-green-500/30" : ""}>
                                                         {subscriber.status}
@@ -226,7 +244,8 @@ export default function SubscribersPage() {
                                                     </DropdownMenu>
                                                 </TableCell>
                                             </TableRow>
-                                        ))}
+                                        );
+                                        })}
                                     </TableBody>
                                 </Table>
                             </div>
@@ -662,7 +681,7 @@ function AddSubscriberDialog() {
         const subscriberData: any = {
             username: username.trim(),
             fullname: fullname.trim(),
-            pass: password,
+            password: password,
         };
 
         // Only add product if selected
@@ -787,7 +806,7 @@ function EditSubscriberDialog({ subscriber, isOpen, onClose, onUpdate }: { subsc
     const { products, groups } = useOrganization();
     const [username, setUsername] = useState(subscriber.username);
     const [fullname, setFullname] = useState(subscriber.fullname);
-    const [password, setPassword] = useState(subscriber.pass);
+    const [password, setPassword] = useState(subscriber.password);
     const [productId, setProductId] = useState(subscriber.product_id?.toString() || '');
     const [groupId, setGroupId] = useState(subscriber.group_id?.toString() || '');
     const [isUpdating, setIsUpdating] = useState(false);
@@ -797,7 +816,7 @@ function EditSubscriberDialog({ subscriber, isOpen, onClose, onUpdate }: { subsc
     useEffect(() => {
         setUsername(subscriber.username);
         setFullname(subscriber.fullname);
-        setPassword(subscriber.pass);
+        setPassword(subscriber.password);
         setProductId(subscriber.product_id?.toString() || '');
         setGroupId(subscriber.group_id?.toString() || '');
         setErrors({ username: false, password: false });
@@ -821,7 +840,7 @@ function EditSubscriberDialog({ subscriber, isOpen, onClose, onUpdate }: { subsc
                 ...subscriber,
                 username: username.trim(),
                 fullname: fullname.trim(),
-                pass: password,
+                password: password,
             };
 
             // Handle product assignment
@@ -856,7 +875,7 @@ function EditSubscriberDialog({ subscriber, isOpen, onClose, onUpdate }: { subsc
     const handleCancel = () => {
         setUsername(subscriber.username);
         setFullname(subscriber.fullname);
-        setPassword(subscriber.pass);
+        setPassword(subscriber.password);
         setProductId(subscriber.product_id?.toString() || '');
         setGroupId(subscriber.group_id?.toString() || '');
         setErrors({ username: false, password: false });
