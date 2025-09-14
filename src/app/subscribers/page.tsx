@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useOrganization, type Subscriber, type Product, type Group } from '@/contexts/OrganizationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 export default function SubscribersPage() {
@@ -42,6 +43,7 @@ export default function SubscribersPage() {
     } = useOrganization();
     const { user } = useAuth();
     const router = useRouter();
+    const { toast } = useToast();
 
     const [showPassword, setShowPassword] = useState(false);
     const [showGroupsHint, setShowGroupsHint] = useState(false);
@@ -123,6 +125,78 @@ export default function SubscribersPage() {
     const handleCloseEditSubscriberModal = () => {
         setEditingSubscriber(null);
         setIsEditSubscriberModalOpen(false);
+    };
+
+    const handleDeleteProduct = async (productId: number, productName: string) => {
+        try {
+            const result = await deleteProduct(productId);
+            if (result.success) {
+                toast({
+                    title: "Success",
+                    description: `Product "${productName}" deleted successfully.`,
+                });
+            } else {
+                toast({
+                    title: "Delete Failed",
+                    description: result.error || "Failed to delete product",
+                    variant: "destructive",
+                });
+            }
+        } catch (error) {
+            toast({
+                title: "Error",
+                description: "An unexpected error occurred while deleting the product.",
+                variant: "destructive",
+            });
+        }
+    };
+
+    const handleDeleteGroup = async (groupId: number, groupName: string) => {
+        try {
+            const result = await deleteGroup(groupId);
+            if (result.success) {
+                toast({
+                    title: "Success",
+                    description: `Group "${groupName}" deleted successfully.`,
+                });
+            } else {
+                toast({
+                    title: "Delete Failed",
+                    description: result.error || "Failed to delete group",
+                    variant: "destructive",
+                });
+            }
+        } catch (error) {
+            toast({
+                title: "Error",
+                description: "An unexpected error occurred while deleting the group.",
+                variant: "destructive",
+            });
+        }
+    };
+
+    const handleDeleteSubscriber = async (subscriberId: number, subscriberName: string) => {
+        try {
+            const result = await deleteSubscriber(subscriberId);
+            if (result.success) {
+                toast({
+                    title: "Success",
+                    description: `Subscriber "${subscriberName}" deleted successfully.`,
+                });
+            } else {
+                toast({
+                    title: "Delete Failed",
+                    description: result.error || "Failed to delete subscriber",
+                    variant: "destructive",
+                });
+            }
+        } catch (error) {
+            toast({
+                title: "Error",
+                description: "An unexpected error occurred while deleting the subscriber.",
+                variant: "destructive",
+            });
+        }
     };
 
     return (
@@ -236,7 +310,7 @@ export default function SubscribersPage() {
                                                                     </AlertDialogHeader>
                                                                     <AlertDialogFooter>
                                                                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                                        <AlertDialogAction onClick={() => deleteSubscriber(subscriber.id)}>Delete</AlertDialogAction>
+                                                                        <AlertDialogAction onClick={() => handleDeleteSubscriber(subscriber.id)}>Delete</AlertDialogAction>
                                                                     </AlertDialogFooter>
                                                                 </AlertDialogContent>
                                                             </AlertDialog>
@@ -354,7 +428,7 @@ export default function SubscribersPage() {
                                                                 </AlertDialogHeader>
                                                                 <AlertDialogFooter>
                                                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                                    <AlertDialogAction onClick={() => deleteProduct(product.id)}>Delete</AlertDialogAction>
+                                                                    <AlertDialogAction onClick={() => handleDeleteProduct(product.id, product.name)}>Delete</AlertDialogAction>
                                                                 </AlertDialogFooter>
                                                             </AlertDialogContent>
                                                         </AlertDialog>
@@ -443,7 +517,7 @@ export default function SubscribersPage() {
                                                                 </AlertDialogHeader>
                                                                 <AlertDialogFooter>
                                                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                                    <AlertDialogAction onClick={() => deleteGroup(group.id)}>Delete</AlertDialogAction>
+                                                                    <AlertDialogAction onClick={() => handleDeleteGroup(group.id, group.name)}>Delete</AlertDialogAction>
                                                                 </AlertDialogFooter>
                                                             </AlertDialogContent>
                                                         </AlertDialog>

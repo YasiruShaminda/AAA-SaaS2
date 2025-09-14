@@ -71,15 +71,15 @@ interface OrganizationContextType {
     subscribers: Subscriber[];
     addSubscriber: (subscriber: Partial<Subscriber>) => Promise<Subscriber | null>;
     updateSubscriber: (subscriber: Subscriber) => Promise<Subscriber | null>;
-    deleteSubscriber: (subscriberId: number) => Promise<void>;
+    deleteSubscriber: (subscriberId: number) => Promise<{ success: boolean; error?: string }>;
     products: Product[];
     addProduct: (product: Partial<Product>) => Promise<Product | null>;
     updateProduct: (product: Product) => Promise<Product | null>;
-    deleteProduct: (productId: number) => Promise<void>;
+    deleteProduct: (productId: number) => Promise<{ success: boolean; error?: string }>;
     groups: Group[];
     addGroup: (group: Partial<Group>) => Promise<Group | null>;
     updateGroup: (group: Group) => Promise<Group | null>;
-    deleteGroup: (groupId: number) => Promise<void>;
+    deleteGroup: (groupId: number) => Promise<{ success: boolean; error?: string }>;
     profiles: Profile[];
     projects: Project[];
     addProject: (project: Partial<Project>) => Promise<Project | null>;
@@ -545,15 +545,19 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
         return null;
     };
 
-    const deleteSubscriber = async (subscriberId: number) => {
+    const deleteSubscriber = async (subscriberId: number): Promise<{ success: boolean; error?: string }> => {
         if (selectedOrganization) {
             try {
                 await api.deleteSubscriber(selectedOrganization.id, subscriberId);
                 setSubscribers(prev => prev.filter(s => s.id !== subscriberId));
+                return { success: true };
             } catch (error) {
                 console.error("Failed to delete subscriber:", error);
+                const errorMessage = error instanceof Error ? error.message : 'Failed to delete subscriber';
+                return { success: false, error: errorMessage };
             }
         }
+        return { success: false, error: 'No organization selected' };
     };
 
     const addProduct = async (product: Partial<Product>): Promise<Product | null> => {
@@ -599,15 +603,19 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
         return null;
     };
 
-    const deleteProduct = async (productId: number) => {
+    const deleteProduct = async (productId: number): Promise<{ success: boolean; error?: string }> => {
         if (selectedOrganization) {
             try {
                 await api.deleteProduct(selectedOrganization.id, productId);
                 setProducts(prev => prev.filter(p => p.id !== productId));
+                return { success: true };
             } catch (error) {
                 console.error("Failed to delete product:", error);
+                const errorMessage = error instanceof Error ? error.message : 'Failed to delete product';
+                return { success: false, error: errorMessage };
             }
         }
+        return { success: false, error: 'No organization selected' };
     };
 
     const addGroup = async (group: Partial<Group>): Promise<Group | null> => {
@@ -638,15 +646,19 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
         return null;
     };
 
-    const deleteGroup = async (groupId: number) => {
+    const deleteGroup = async (groupId: number): Promise<{ success: boolean; error?: string }> => {
         if (selectedOrganization) {
             try {
                 await api.deleteGroup(selectedOrganization.id, groupId);
                 setGroups(prev => prev.filter(g => g.id !== groupId));
+                return { success: true };
             } catch (error) {
                 console.error("Failed to delete group:", error);
+                const errorMessage = error instanceof Error ? error.message : 'Failed to delete group';
+                return { success: false, error: errorMessage };
             }
         }
+        return { success: false, error: 'No organization selected' };
     };
 
     const getProjectsForGroup = (groupName: string): Project[] => {
