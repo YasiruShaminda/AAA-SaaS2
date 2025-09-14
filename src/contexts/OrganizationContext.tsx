@@ -29,7 +29,7 @@ export type Organization = {
 export type Subscriber = {
     id: number;
     username: string;
-    pass: string;
+    password: string;
     fullname: string;
     product: string;
     group: string;
@@ -306,33 +306,26 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
             // Step 3: Create default subscriber (bind to default group and product)
             if (defaultGroup && defaultProduct) {
                 try {
-                    console.log('Creating default subscriber with group:', defaultGroup.name, 'ID:', defaultGroup.id, 'and product:', defaultProduct.name, 'ID:', defaultProduct.id);
                     const subscriberData = {
                         username: 'demo-user',
-                        pass: 'demo123',
+                        password: 'demo123',
                         fullname: 'Demo User',
-                        product: defaultProduct.name,
-                        product_id: defaultProduct.id,
-                        group: defaultGroup.name,
-                        group_id: defaultGroup.id,
-                        status: 'Offline' as const
+                        product_id: Number(defaultProduct.id),
+                        group_id: Number(defaultGroup.id)
                     };
-                    console.log('Subscriber data to send:', subscriberData);
                     
                     defaultSubscriber = await api.createSubscriber(targetOrg.id, subscriberData);
                     if (defaultSubscriber) {
                         setSubscribers(prev => [...prev, defaultSubscriber!]);
-                        console.log('Default subscriber created successfully:', defaultSubscriber);
+                        console.log('Default subscriber created successfully');
                     } else {
                         console.error('Subscriber creation returned null/undefined');
                     }
                 } catch (error) {
                     console.error('Failed to create default subscriber:', error);
-                    console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
                 }
             } else {
                 console.warn('Skipping subscriber creation because default group or product was not created');
-                console.warn('Group exists:', !!defaultGroup, 'Product exists:', !!defaultProduct);
             }
             
             // Step 4: Create default project (assign the group to subscriber groups)
