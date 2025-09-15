@@ -13,10 +13,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Copy, Download, RefreshCw, Trash2, Upload, PlusCircle, MoreHorizontal, Pencil, Search, SlidersHorizontal, CheckCircle, Bell, KeyRound, Server, History, Building2, Users } from "lucide-react";
 import { useOrganization } from '@/contexts/OrganizationContext';
 import type { Organization } from '@/contexts/OrganizationContext';
+import * as api from '@/lib/api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
@@ -41,7 +43,17 @@ const teamUsers = [
 
 
 const OrganizationRow = ({ org, onSelect, onAfterDelete }: { org: Organization, onSelect: (org: Organization) => void, onAfterDelete: () => void }) => {
-    const { selectedOrganization, deleteOrganization } = useOrganization();
+    const { selectedOrganization, deleteOrganization, organizations } = useOrganization();
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [dependencies, setDependencies] = useState<{ subscribers: number; groups: number; products: number; projects: number } | null>(null);
+    const [confirmDeleteDependencies, setConfirmDeleteDependencies] = useState(false);
+    const [confirmText, setConfirmText] = useState('');
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [deleteProgress, setDeleteProgress] = useState(0);
+    const [deleteStep, setDeleteStep] = useState('');
+    const [isRedirecting, setIsRedirecting] = useState(false);
+    const { toast } = useToast();
+    const router = useRouter();
     
     const getStatusBadgeClass = (status: Organization['status']) => {
         switch (status) {
@@ -56,53 +68,299 @@ const OrganizationRow = ({ org, onSelect, onAfterDelete }: { org: Organization, 
         }
     };
 
+    const fetchDependencies = async () => {
+        try {
+            console.log('Fetching dependencies for org:', org.id, 'org name:', org.name);
+            
+            // Keep orgId as string since API expects string
+            const orgId = org.id.toString();
+            
+            const [subscribers, groups, products, projects] = await Promise.all([
+                api.getSubscribers(orgId).catch(err => { console.error('Subscribers API error:', err); return []; }),
+                api.getGroups(orgId).catch(err => { console.error('Groups API error:', err); return []; }),
+                api.getProducts(orgId).catch(err => { console.error('Products API error:', err); return []; }),
+                api.getProjects(orgId).catch(err => { console.error('Projects API error:', err); return []; })
+            ]);
+            
+            // Handle various response formats like OrganizationContext does
+            const processResponse = (data: any, type: string) => {
+                if (Array.isArray(data)) {
+                    return data;
+                } else if (data && typeof data === 'object') {
+                    if (data.data && Array.isArray(data.data)) {
+                        return data.data;
+                    } else if (data[type.toLowerCase()] && Array.isArray(data[type.toLowerCase()])) {
+                        return data[type.toLowerCase()];
+                    } else {
+                        console.warn(`Unexpected ${type} data format:`, data);
+                        return [];
+                    }
+                } else {
+                    console.warn(`Unexpected ${type} data format:`, data);
+                    return [];
+                }
+            };
+            
+            const processedSubscribers = processResponse(subscribers, 'Subscribers');
+            const processedGroups = processResponse(groups, 'Groups');
+            const processedProducts = processResponse(products, 'Products');
+            const processedProjects = processResponse(projects, 'Projects');
+            
+            const deps = {
+                subscribers: processedSubscribers.length,
+                groups: processedGroups.length,
+                products: processedProducts.length,
+                projects: processedProjects.length
+            };
+            
+            console.log('Calculated dependencies:', deps);
+            setDependencies(deps);
+        } catch (error) {
+            console.error('Failed to fetch dependencies:', error);
+            // Set empty dependencies on error so modal can still show
+            setDependencies({
+                subscribers: 0,
+                groups: 0,
+                products: 0,
+                projects: 0
+            });
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Failed to load organization dependencies.",
+            });
+        }
+    };
+
+    const handleOpenDeleteModal = () => {
+        console.log('Opening delete modal for org:', org);
+        setIsDeleteModalOpen(true);
+        fetchDependencies();
+    };
+
+    const handleCloseDeleteModal = () => {
+        // Don't allow closing modal while deleting or redirecting
+        if (isDeleting || isRedirecting) return;
+        
+        setIsDeleteModalOpen(false);
+        // Reset all state when modal is closed
+        setDependencies(null);
+        setConfirmDeleteDependencies(false);
+        setConfirmText('');
+        setIsDeleting(false);
+        setDeleteProgress(0);
+        setDeleteStep('');
+        setIsRedirecting(false);
+    };
+
     const handleDelete = async () => {
-        await deleteOrganization(org.id);
-        onAfterDelete();
-    }
+        if (!canDelete) return;
+        
+        console.log('Starting deletion process for org:', org.id);
+        setIsDeleting(true);
+        setDeleteProgress(0);
+        setDeleteStep('Starting deletion...');
+        
+        try {
+            console.log('Calling deleteOrganization with dependencies:', confirmDeleteDependencies);
+            await deleteOrganization(org.id, confirmDeleteDependencies, (step, progress) => {
+                console.log('Progress update:', step, progress);
+                setDeleteStep(step);
+                setDeleteProgress(progress);
+            });
+            
+            console.log('Deletion completed successfully');
+            // Only proceed with success flow if deletion completed successfully
+            setDeleteStep('Organization deleted successfully!');
+            setDeleteProgress(100);
+            
+            toast({
+                title: "Success",
+                description: `Organization "${org.name}" has been deleted successfully.`,
+            });
+            
+            // Wait a moment to show completion, then check for redirect
+            setTimeout(() => {
+                console.log('Starting redirect process');
+                setIsRedirecting(true);
+                setDeleteStep('Checking remaining organizations...');
+                
+                // Get fresh organization list to determine redirect
+                setTimeout(() => {
+                    const remainingOrgs = organizations.filter(o => o.id !== org.id);
+                    console.log('Remaining orgs after deletion:', remainingOrgs.length);
+                    
+                    // Close modal before redirecting
+                    setIsDeleteModalOpen(false);
+                    
+                    if (remainingOrgs.length > 0) {
+                        console.log('Redirecting to /organizations');
+                        router.push('/organizations');
+                    } else {
+                        console.log('Redirecting to /organizations/new');
+                        router.push('/organizations/new');
+                    }
+                    
+                    // Call onAfterDelete to refresh the UI
+                    onAfterDelete();
+                }, 500);
+            }, 1500);
+            
+        } catch (error) {
+            console.error('Failed to delete organization:', error);
+            setDeleteStep('');
+            setDeleteProgress(0);
+            setIsDeleting(false);
+            setIsRedirecting(false);
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: error instanceof Error ? error.message : "Failed to delete organization. Please try again.",
+            });
+            // Don't redirect on error - keep modal open
+        }
+    };
+
+    const hasDependencies = dependencies && (
+        dependencies.subscribers > 0 || 
+        dependencies.groups > 0 || 
+        dependencies.products > 0 || 
+        dependencies.projects > 0
+    );
+
+    const canDelete = !hasDependencies || (confirmDeleteDependencies && (confirmText === 'delete' || confirmText === org.name.toLowerCase()));
 
     return (
-        <TableRow className="hover:bg-muted/50 cursor-pointer" onClick={() => onSelect(org)}>
-            <TableCell className="w-12">
-                 {selectedOrganization?.id === org.id && <CheckCircle className="size-5 text-primary" />}
-            </TableCell>
-            <TableCell className="font-medium">{org.name}</TableCell>
-            <TableCell>{(org.subscribers || 0).toLocaleString()}</TableCell>
-            <TableCell>
-                <Badge variant={(org.status || 'Inactive') === 'Active' ? 'default' : 'secondary'} className={getStatusBadgeClass(org.status || 'Inactive')}>
-                    {org.status || 'Inactive'}
-                </Badge>
-            </TableCell>
-            <TableCell className="text-right">
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}><MoreHorizontal /></Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenuItem><Pencil className="mr-2 size-4" /> Edit</DropdownMenuItem>
-                         <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
-                                    <Trash2 className="mr-2 size-4" /> Delete
-                                </DropdownMenuItem>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        This action cannot be undone. This will permanently delete the <strong>{org.name}</strong> organization and all its data.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </TableCell>
-        </TableRow>
+        <>
+            <TableRow className="hover:bg-muted/50 cursor-pointer" onClick={() => onSelect(org)}>
+                <TableCell className="w-12">
+                     {selectedOrganization?.id === org.id && <CheckCircle className="size-5 text-primary" />}
+                </TableCell>
+                <TableCell className="font-medium">{org.name}</TableCell>
+                <TableCell>{(org.subscribers || 0).toLocaleString()}</TableCell>
+                <TableCell>
+                    <Badge variant={(org.status || 'Inactive') === 'Active' ? 'default' : 'secondary'} className={getStatusBadgeClass(org.status || 'Inactive')}>
+                        {org.status || 'Inactive'}
+                    </Badge>
+                </TableCell>
+                <TableCell className="text-right">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}><MoreHorizontal /></Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenuItem><Pencil className="mr-2 size-4" /> Edit</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive" onClick={handleOpenDeleteModal}>
+                                <Trash2 className="mr-2 size-4" /> Delete
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </TableCell>
+            </TableRow>
+            
+            <Dialog open={isDeleteModalOpen} onOpenChange={(open) => !open && !isDeleting && !isRedirecting && handleCloseDeleteModal()}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Delete Organization</DialogTitle>
+                        <DialogDescription>
+                            This action cannot be undone. This will permanently delete the <strong>{org.name}</strong> organization.
+                        </DialogDescription>
+                    </DialogHeader>
+                    
+                    {dependencies && (
+                        <div className="space-y-4">
+                            {hasDependencies && (
+                                <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+                                    <h4 className="font-medium text-sm">Dependencies found:</h4>
+                                    <div className="grid grid-cols-2 gap-2 text-sm">
+                                        {dependencies.subscribers > 0 && (
+                                            <div className="flex justify-between">
+                                                <span>Subscribers:</span>
+                                                <Badge variant="secondary">{dependencies.subscribers}</Badge>
+                                            </div>
+                                        )}
+                                        {dependencies.groups > 0 && (
+                                            <div className="flex justify-between">
+                                                <span>Groups:</span>
+                                                <Badge variant="secondary">{dependencies.groups}</Badge>
+                                            </div>
+                                        )}
+                                        {dependencies.products > 0 && (
+                                            <div className="flex justify-between">
+                                                <span>Products:</span>
+                                                <Badge variant="secondary">{dependencies.products}</Badge>
+                                            </div>
+                                        )}
+                                        {dependencies.projects > 0 && (
+                                            <div className="flex justify-between">
+                                                <span>Projects:</span>
+                                                <Badge variant="secondary">{dependencies.projects}</Badge>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {hasDependencies && (
+                                <div className="flex items-center space-x-2">
+                                    <Checkbox 
+                                        id="delete-dependencies" 
+                                        checked={confirmDeleteDependencies}
+                                        onCheckedChange={(checked) => setConfirmDeleteDependencies(checked === true)}
+                                    />
+                                    <Label htmlFor="delete-dependencies" className="text-sm">
+                                        Also delete all subscribers, groups, products, and projects
+                                    </Label>
+                                </div>
+                            )}
+                            
+                            <div className="space-y-2">
+                                <Label htmlFor="confirm-text" className="text-sm">
+                                    Type <code className="bg-muted px-1 py-0.5 rounded text-xs">delete</code> or <code className="bg-muted px-1 py-0.5 rounded text-xs">{org.name.toLowerCase()}</code> to confirm:
+                                </Label>
+                                <Input
+                                    id="confirm-text"
+                                    value={confirmText}
+                                    onChange={(e) => setConfirmText(e.target.value.toLowerCase())}
+                                    placeholder="Type here to confirm"
+                                    className="text-sm"
+                                />
+                            </div>
+                        </div>
+                    )}
+                    
+                    {isDeleting && (
+                        <div className="space-y-3 mt-4">
+                            <div className="flex items-center justify-between text-sm">
+                                <span>{deleteStep}</span>
+                                <span>{Math.round(deleteProgress)}%</span>
+                            </div>
+                            <Progress value={deleteProgress} className="w-full" />
+                        </div>
+                    )}
+                    
+                    {isRedirecting && (
+                        <div className="flex items-center justify-center space-x-2 mt-4 p-4 bg-muted/50 rounded-lg">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                            <span className="text-sm">Redirecting...</span>
+                        </div>
+                    )}
+                    
+                    <DialogFooter>
+                        <Button variant="outline" onClick={handleCloseDeleteModal} disabled={isDeleting || isRedirecting}>
+                            Cancel
+                        </Button>
+                        <Button 
+                            onClick={handleDelete} 
+                            disabled={!canDelete || isDeleting || isRedirecting}
+                            className="bg-destructive hover:bg-destructive/90"
+                        >
+                            {isDeleting ? "Deleting..." : isRedirecting ? "Redirecting..." : "Delete Organization"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 };
 

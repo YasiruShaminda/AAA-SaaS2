@@ -114,7 +114,7 @@ interface OrganizationContextType {
     isOrgDataLoaded: boolean;
     selectOrganization: (organization: Organization | null, onSelect?: () => void) => void;
     addOrganization: (organization: Organization, shouldAutoSelect?: boolean) => Promise<Organization | null>;
-    deleteOrganization: (orgId: string) => void;
+    deleteOrganization: (orgId: string, deleteDependencies?: boolean, onProgress?: (step: string, progress: number) => void) => Promise<void>;
     subscribers: Subscriber[];
     addSubscriber: (subscriber: Partial<Subscriber>) => Promise<Subscriber | null>;
     updateSubscriber: (subscriber: Subscriber) => Promise<Subscriber | null>;
@@ -398,15 +398,111 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
         return null;
     };
     
-    const deleteOrganization = async (orgId: string) => {
-        if (selectedOrganization?.id === orgId) {
-            selectOrganization(null);
-        }
+    const deleteOrganization = async (orgId: string, deleteDependencies: boolean = false, onProgress?: (step: string, progress: number) => void) => {
         try {
+            if (deleteDependencies) {
+                onProgress?.("Fetching dependencies...", 10);
+                
+                // Get all dependencies first
+                const [projectsRaw, subscribersRaw, groupsRaw, productsRaw] = await Promise.all([
+                    api.getProjects(orgId),
+                    api.getSubscribers(orgId),
+                    api.getGroups(orgId),
+                    api.getProducts(orgId)
+                ]);
+                
+                // Process responses to handle wrapped formats
+                const processResponse = (data: any, type: string) => {
+                    if (Array.isArray(data)) {
+                        return data;
+                    } else if (data && typeof data === 'object') {
+                        if (data.data && Array.isArray(data.data)) {
+                            return data.data;
+                        } else if (data[type.toLowerCase()] && Array.isArray(data[type.toLowerCase()])) {
+                            return data[type.toLowerCase()];
+                        } else {
+                            console.warn(`Unexpected ${type} data format:`, data);
+                            return [];
+                        }
+                    } else {
+                        console.warn(`Unexpected ${type} data format:`, data);
+                        return [];
+                    }
+                };
+                
+                const projects = processResponse(projectsRaw, 'Projects');
+                const subscribers = processResponse(subscribersRaw, 'Subscribers');
+                const groups = processResponse(groupsRaw, 'Groups');
+                const products = processResponse(productsRaw, 'Products');
+                
+                console.log('Delete dependencies - processed:', {
+                    projects: projects.length,
+                    subscribers: subscribers.length,
+                    groups: groups.length,
+                    products: products.length
+                });
+                
+                const totalItems = projects.length + subscribers.length + groups.length + products.length;
+                let completedItems = 0;
+                
+                // Step 1: Delete projects
+                if (projects && projects.length > 0) {
+                    onProgress?.(`Deleting ${projects.length} projects...`, 20);
+                    console.log(`Deleting ${projects.length} projects...`);
+                    for (const project of projects) {
+                        await api.deleteProject(orgId, project.id);
+                        completedItems++;
+                        onProgress?.(`Deleting projects... (${completedItems}/${totalItems})`, 20 + (completedItems / totalItems) * 30);
+                    }
+                }
+                
+                // Step 2: Delete subscribers
+                if (subscribers && subscribers.length > 0) {
+                    onProgress?.(`Deleting ${subscribers.length} subscribers...`, 50);
+                    console.log(`Deleting ${subscribers.length} subscribers...`);
+                    for (const subscriber of subscribers) {
+                        await api.deleteSubscriber(orgId, subscriber.id);
+                        completedItems++;
+                        onProgress?.(`Deleting subscribers... (${completedItems}/${totalItems})`, 50 + (completedItems / totalItems) * 30);
+                    }
+                }
+                
+                // Step 3: Delete groups and products
+                if (groups && groups.length > 0) {
+                    onProgress?.(`Deleting ${groups.length} groups...`, 80);
+                    console.log(`Deleting ${groups.length} groups...`);
+                    for (const group of groups) {
+                        await api.deleteGroup(orgId, group.id);
+                        completedItems++;
+                        onProgress?.(`Deleting groups... (${completedItems}/${totalItems})`, 80 + (completedItems / totalItems) * 15);
+                    }
+                }
+                
+                if (products && products.length > 0) {
+                    onProgress?.(`Deleting ${products.length} products...`, 95);
+                    console.log(`Deleting ${products.length} products...`);
+                    for (const product of products) {
+                        await api.deleteProduct(orgId, product.id);
+                        completedItems++;
+                        onProgress?.(`Deleting products... (${completedItems}/${totalItems})`, 95 + (completedItems / totalItems) * 4);
+                    }
+                }
+            }
+            
+            // Step 4: Delete organization
+            onProgress?.("Deleting organization...", 99);
             await api.deleteOrganization(orgId);
             setOrganizations(prev => prev.filter(o => o.id !== orgId));
+            
+            // Only clear selected organization if it was the one being deleted
+            if (selectedOrganization?.id === orgId) {
+                setSelectedOrganization(null);
+            }
+            
+            onProgress?.("Organization deleted successfully!", 100);
         } catch (error) {
             console.error("Failed to delete organization:", error);
+            throw error; // Re-throw to allow caller to handle
         }
     };
 
