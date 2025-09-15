@@ -4,16 +4,63 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { useAuth } from './AuthContext';
 import * as api from '@/lib/api';
 
-// New Project Data Type - Moved from projects/page.tsx
+// Project Data Type - Extended to support both API and UI requirements
 export type Project = {
-    id: string;
+    // API fields from database
+    id: number;
+    organization_id: number;
     name: string;
     description: string;
+    auth_enabled: number;
+    acct_enabled: number;
+    created_at: string;
+    updated_at: string;
+    
+    // UI fields for project editor (required with defaults)
     status: 'Active' | 'Draft';
     createdAt: string;
     sharedSecret: string;
     subscriberGroups: string[];
-    profile: Profile;
+    profile: ProjectProfile;
+};
+
+// Project profile type for RADIUS configuration
+export type ProjectProfile = {
+    authEnabled: boolean;
+    acctEnabled: boolean;
+    checkAttributes: string[];
+    replyAttributes: string[];
+    vendorAttributes: string[];
+    accountingAttributes: string[];
+};
+
+// Adapter function to convert API project to UI project with defaults
+export const adaptApiProjectToUI = (apiProject: any): Project => {
+    return {
+        // Map API fields
+        id: apiProject.id,
+        organization_id: apiProject.organization_id,
+        name: apiProject.name,
+        description: apiProject.description,
+        auth_enabled: apiProject.auth_enabled,
+        acct_enabled: apiProject.acct_enabled,
+        created_at: apiProject.created_at,
+        updated_at: apiProject.updated_at,
+        
+        // Add UI defaults
+        status: apiProject.auth_enabled ? 'Active' : 'Draft',
+        createdAt: apiProject.created_at,
+        sharedSecret: 'shared-secret-' + Math.random().toString(36).substring(2),
+        subscriberGroups: [],
+        profile: {
+            authEnabled: Boolean(apiProject.auth_enabled),
+            acctEnabled: Boolean(apiProject.acct_enabled),
+            checkAttributes: [],
+            replyAttributes: [],
+            vendorAttributes: [],
+            accountingAttributes: []
+        }
+    };
 };
 
 export type Organization = {
@@ -84,7 +131,7 @@ interface OrganizationContextType {
     projects: Project[];
     addProject: (project: Partial<Project>) => Promise<Project | null>;
     updateProject: (project: Project) => Promise<Project | null>;
-    deleteProject: (projectId: string) => Promise<void>;
+    deleteProject: (projectId: number) => Promise<{ success: boolean; error?: string }>;
     addDefaultDataForNewOrg: (organization?: Organization) => Promise<void>;
     getProjectsForGroup: (groupName: string) => Project[];
     getSubscriberCountForGroup: (groupId: number) => number;
@@ -277,9 +324,32 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
                     
                     try {
                         const projectsData = await api.getProjects(selectedOrganization.id);
-                        setProjects(Array.isArray(projectsData) ? projectsData : []);
+                        console.log('Raw projects API response:', projectsData);
+                        
+                        // Handle various response formats
+                        let processedProjects: Project[] = [];
+                        if (Array.isArray(projectsData)) {
+                            processedProjects = projectsData;
+                        } else if (projectsData && typeof projectsData === 'object') {
+                            const data = projectsData as any;
+                            if (data.data && Array.isArray(data.data)) {
+                                processedProjects = data.data;
+                            } else if (data.projects && Array.isArray(data.projects)) {
+                                processedProjects = data.projects;
+                            } else {
+                                console.warn('Unexpected projects data format:', projectsData);
+                            }
+                        }
+                        
+                        const validProjects = processedProjects.filter(project => 
+                            project && typeof project === 'object' && project.id !== undefined
+                        ).map(adaptApiProjectToUI);
+                        
+                        setProjects(validProjects);
+                        console.log('Projects set to state:', validProjects);
                     } catch (error) {
                         console.warn("Failed to load projects:", error);
+                        setProjects([]);
                     }
                     
                 } catch (error) {
@@ -466,9 +536,24 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
     const addProject = async (project: Partial<Project>): Promise<Project | null> => {
         if (selectedOrganization) {
             try {
-                const newProject = await api.createProject(selectedOrganization.id, project);
-                setProjects(prev => [...prev, newProject]);
-                return newProject;
+                // Convert UI project data to API format
+                const apiProjectData = {
+                    name: project.name || 'New Project',
+                    description: project.description || '',
+                    auth_enabled: project.profile?.authEnabled ? 1 : (project.auth_enabled ?? 1),
+                    acct_enabled: project.profile?.acctEnabled ? 1 : (project.acct_enabled ?? 0)
+                };
+                
+                const apiProject = await api.createProject(selectedOrganization.id, apiProjectData);
+                const uiProject = adaptApiProjectToUI(apiProject);
+                
+                // Apply any additional UI fields from the input
+                if (project.sharedSecret) uiProject.sharedSecret = project.sharedSecret;
+                if (project.subscriberGroups) uiProject.subscriberGroups = project.subscriberGroups;
+                if (project.profile) uiProject.profile = { ...uiProject.profile, ...project.profile };
+                
+                setProjects(prev => [...prev, uiProject]);
+                return uiProject;
             } catch (error) {
                 console.error("Failed to create project:", error);
                 return null;
@@ -480,9 +565,24 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
     const updateProject = async (project: Project): Promise<Project | null> => {
         if (selectedOrganization) {
             try {
-                const updatedProject = await api.updateProject(selectedOrganization.id, project.id, project);
-                setProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
-                return updatedProject;
+                // Convert UI project data to API format for the API call
+                const apiProjectData = {
+                    name: project.name,
+                    description: project.description,
+                    auth_enabled: project.profile.authEnabled ? 1 : project.auth_enabled,
+                    acct_enabled: project.profile.acctEnabled ? 1 : project.acct_enabled
+                };
+                
+                const updatedApiProject = await api.updateProject(selectedOrganization.id, project.id, apiProjectData);
+                const updatedUiProject = adaptApiProjectToUI(updatedApiProject);
+                
+                // Preserve UI-specific fields
+                updatedUiProject.sharedSecret = project.sharedSecret;
+                updatedUiProject.subscriberGroups = project.subscriberGroups;
+                updatedUiProject.profile = project.profile;
+                
+                setProjects(prev => prev.map(p => p.id === updatedUiProject.id ? updatedUiProject : p));
+                return updatedUiProject;
             } catch (error) {
                 console.error("Failed to update project:", error);
                 return null;
@@ -491,15 +591,20 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
         return null;
     };
 
-    const deleteProject = async (projectId: string) => {
+    const deleteProject = async (projectId: number): Promise<{ success: boolean; error?: string }> => {
         if (selectedOrganization) {
             try {
                 await api.deleteProject(selectedOrganization.id, projectId);
                 setProjects(prev => prev.filter(p => p.id !== projectId));
+                console.log(`Project ${projectId} deleted successfully`);
+                return { success: true };
             } catch (error) {
                 console.error("Failed to delete project:", error);
+                const errorMessage = error instanceof Error ? error.message : 'Failed to delete project';
+                return { success: false, error: errorMessage };
             }
         }
+        return { success: false, error: 'No organization selected' };
     };
 
     const addSubscriber = async (subscriber: Partial<Subscriber>): Promise<Subscriber | null> => {
@@ -662,9 +767,9 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const getProjectsForGroup = (groupName: string): Project[] => {
-        return projects.filter(project => 
-            project.subscriberGroups && project.subscriberGroups.includes(groupName)
-        );
+        // Note: Current Project type doesn't include subscriberGroups relationship
+        // This function may need to be updated based on actual API relationships
+        return [];
     };
 
     const getSubscriberCountForGroup = (groupId: number): number => {

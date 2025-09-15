@@ -153,13 +153,13 @@ export const createProject = (orgId: string, projectData: Partial<Project>) =>
         body: JSON.stringify(projectData),
     });
 
-export const updateProject = (orgId: string, projectId: string, projectData: Project) =>
+export const updateProject = (orgId: string, projectId: number, projectData: Partial<Project>) =>
     request<Project>(`/aaa/${orgId}/projects/${projectId}`, {
         method: 'PUT',
         body: JSON.stringify(projectData),
     });
 
-export const deleteProject = (orgId: string, projectId: string) =>
+export const deleteProject = (orgId: string, projectId: number) =>
     request<any>(`/aaa/${orgId}/projects/${projectId}`, {
         method: 'DELETE',
     });

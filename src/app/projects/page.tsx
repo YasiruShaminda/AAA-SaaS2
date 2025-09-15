@@ -19,7 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { TemplateManagerDialog, type ProfileTemplate } from '@/components/projects/TemplateManager';
-import { useOrganization, type Project } from '@/contexts/OrganizationContext';
+import { useOrganization, type Project, type ProjectProfile } from '@/contexts/OrganizationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
@@ -27,14 +27,7 @@ import { PreviewAnimation } from '@/components/projects/PreviewAnimation';
 
 // Data types from the old /profiles page
 type ProfileAttributeType = 'checkAttributes' | 'replyAttributes' | 'vendorAttributes' | 'accountingAttributes';
-export type Profile = {
-    authEnabled: boolean;
-    acctEnabled: boolean;
-    checkAttributes: string[];
-    replyAttributes: string[];
-    vendorAttributes: string[];
-    accountingAttributes: string[];
-};
+export type Profile = ProjectProfile;
 
 const allRadiusAttributes = [
     'User-Name', 'User-Password', 'CHAP-Password', 'NAS-IP-Address', 'NAS-Port', 
@@ -61,6 +54,21 @@ function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBac
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
     const [isCliTestOpen, setIsCliTestOpen] = useState(false);
 
+    // Ensure project has required fields with defaults
+    const safeProject: Project = {
+        ...project,
+        sharedSecret: project.sharedSecret || 'shared-secret-' + Math.random().toString(36).substring(2),
+        subscriberGroups: project.subscriberGroups || [],
+        profile: project.profile || {
+            authEnabled: Boolean(project.auth_enabled),
+            acctEnabled: Boolean(project.acct_enabled),
+            checkAttributes: [],
+            replyAttributes: [],
+            vendorAttributes: [],
+            accountingAttributes: []
+        }
+    };
+
 
     useEffect(() => {
         if (user) {
@@ -70,19 +78,23 @@ function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBac
     }, [user]);
 
     const handleProfileUpdate = (field: keyof Profile, value: any) => {
-        onUpdate({ ...project, profile: { ...project.profile, [field]: value }});
+        const updatedProject = {
+            ...safeProject,
+            profile: { ...safeProject.profile, [field]: value } as ProjectProfile
+        };
+        onUpdate(updatedProject);
     };
 
     const handleAttributeToggle = (type: ProfileAttributeType, attribute: string) => {
-        const currentAttributes = project.profile[type];
+        const currentAttributes = safeProject.profile[type];
         const newAttributes = currentAttributes.includes(attribute)
-            ? currentAttributes.filter(a => a !== attribute)
+            ? currentAttributes.filter((a: string) => a !== attribute)
             : [...currentAttributes, attribute];
         handleProfileUpdate(type, newAttributes);
     };
 
     const removeAttribute = (type: ProfileAttributeType, attribute: string) => {
-        handleProfileUpdate(type, project.profile[type].filter(a => a !== attribute));
+        handleProfileUpdate(type, safeProject.profile[type].filter((a: string) => a !== attribute));
     };
     
     const generateSecret = () => {
@@ -100,11 +112,15 @@ function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBac
     };
 
     const handleLoadTemplate = (template: ProfileTemplate) => {
-        const newProfile = {
-            ...project.profile,
-            ...template.attributes,
+        const newProfile: ProjectProfile = {
+            authEnabled: safeProject.profile.authEnabled,
+            acctEnabled: safeProject.profile.acctEnabled,
+            checkAttributes: template.attributes?.checkAttributes ?? safeProject.profile.checkAttributes,
+            replyAttributes: template.attributes?.replyAttributes ?? safeProject.profile.replyAttributes,
+            vendorAttributes: template.attributes?.vendorAttributes ?? safeProject.profile.vendorAttributes,
+            accountingAttributes: template.attributes?.accountingAttributes ?? safeProject.profile.accountingAttributes
         };
-        onUpdate({ ...project, profile: newProfile });
+        onUpdate({ ...safeProject, profile: newProfile });
         setTemplateManagerOpen(false);
     };
     
@@ -185,7 +201,7 @@ function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBac
                                 </AlertDialogContent>
                             </AlertDialog>
                             <Button onClick={onDuplicate} variant="outline"><Copy className="mr-2" /> Duplicate</Button>
-                            <Button onClick={onSave} disabled={!project.name.trim() || !project.sharedSecret.trim() || project.subscriberGroups.length === 0}>Save Project</Button>
+                            <Button onClick={onSave} disabled={!project.name.trim() || !safeProject.sharedSecret.trim() || safeProject.subscriberGroups.length === 0}>Save Project</Button>
                         </div>
                     </div>
                 </CardHeader>
@@ -202,7 +218,7 @@ function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBac
                              <div className="flex items-center gap-2">
                                 <Input 
                                     type={showSecret ? 'text' : 'password'} 
-                                    value={project.sharedSecret}
+                                    value={safeProject.sharedSecret}
                                     onChange={(e) => onUpdate({...project, sharedSecret: e.target.value})}
                                     placeholder="Enter shared secret"
                                     className="font-mono"
@@ -227,18 +243,18 @@ function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBac
                                     <Button variant="outline" className="w-full justify-start"><PlusCircle className="mr-2"/> Add group...</Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent>
-                                    {subscriberGroups.filter(g => !project.subscriberGroups.includes(g)).map(group => (
-                                        <DropdownMenuItem key={group} onSelect={() => onUpdate({...project, subscriberGroups: [...project.subscriberGroups, group]})}>
+                                    {subscriberGroups.filter(g => !safeProject.subscriberGroups.includes(g)).map(group => (
+                                        <DropdownMenuItem key={group} onSelect={() => onUpdate({...project, subscriberGroups: [...safeProject.subscriberGroups, group]})}>
                                             {group}
                                         </DropdownMenuItem>
                                     ))}
                                 </DropdownMenuContent>
                             </DropdownMenu>
                             <div className="mt-4 space-y-2">
-                                {project.subscriberGroups.map(group => (
+                                {safeProject.subscriberGroups.map((group: string) => (
                                     <Badge key={group} variant="secondary" className="text-base mr-2">
                                         {group}
-                                        <button onClick={() => onUpdate({...project, subscriberGroups: project.subscriberGroups.filter(g => g !== group)})} className="ml-2 rounded-full hover:bg-muted-foreground/20 p-0.5">
+                                        <button onClick={() => onUpdate({...safeProject, subscriberGroups: safeProject.subscriberGroups.filter((g: string) => g !== group)})} className="ml-2 rounded-full hover:bg-muted-foreground/20 p-0.5">
                                             <X className="size-3" />
                                         </button>
                                     </Badge>
@@ -263,42 +279,42 @@ function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBac
                         <CardContent className="space-y-6">
                             <div className="flex items-center space-x-4">
                                 <div className="flex items-center space-x-2">
-                                    <Switch id="auth-enabled" checked={project.profile.authEnabled} onCheckedChange={(c) => handleProfileUpdate('authEnabled', c)} />
+                                    <Switch id="auth-enabled" checked={safeProject.profile.authEnabled} onCheckedChange={(c) => handleProfileUpdate('authEnabled', c)} />
                                     <Label htmlFor="auth-enabled">Authentication</Label>
                                 </div>
                                 <div className="flex items-center space-x-2">
-                                    <Switch id="acct-enabled" checked={project.profile.acctEnabled} onCheckedChange={(c) => handleProfileUpdate('acctEnabled', c)} />
+                                    <Switch id="acct-enabled" checked={safeProject.profile.acctEnabled} onCheckedChange={(c) => handleProfileUpdate('acctEnabled', c)} />
                                     <Label htmlFor="acct-enabled">Accounting</Label>
                                 </div>
                             </div>
                              <Tabs defaultValue="check">
                                 <TabsList>
-                                    <TabsTrigger value="check" disabled={!project.profile.authEnabled}>Auth Request</TabsTrigger>
-                                    <TabsTrigger value="reply" disabled={!project.profile.authEnabled}>Auth Reply</TabsTrigger>
-                                    <TabsTrigger value="accounting" disabled={!project.profile.acctEnabled}>Accounting Attributes</TabsTrigger>
+                                    <TabsTrigger value="check" disabled={!safeProject.profile.authEnabled}>Auth Request</TabsTrigger>
+                                    <TabsTrigger value="reply" disabled={!safeProject.profile.authEnabled}>Auth Reply</TabsTrigger>
+                                    <TabsTrigger value="accounting" disabled={!safeProject.profile.acctEnabled}>Accounting Attributes</TabsTrigger>
                                     <TabsTrigger value="vendor">Vendor-Specific</TabsTrigger>
                                 </TabsList>
                                 <TabsContent value="check">
                                     <AttributeEditor 
-                                        attributes={project.profile.checkAttributes} 
+                                        attributes={safeProject.profile.checkAttributes} 
                                         type="checkAttributes"
                                         onToggle={handleAttributeToggle}
                                         onRemove={removeAttribute}
-                                        isDisabled={!project.profile.authEnabled}
+                                        isDisabled={!safeProject.profile.authEnabled}
                                     />
                                 </TabsContent>
                                 <TabsContent value="reply">
                                     <AttributeEditor 
-                                        attributes={project.profile.replyAttributes}
+                                        attributes={safeProject.profile.replyAttributes}
                                         type="replyAttributes"
                                         onToggle={handleAttributeToggle}
                                         onRemove={removeAttribute}
-                                        isDisabled={!project.profile.authEnabled}
+                                        isDisabled={!safeProject.profile.authEnabled}
                                     />
                                 </TabsContent>
                                 <TabsContent value="vendor">
                                     <AttributeEditor 
-                                        attributes={project.profile.vendorAttributes}
+                                        attributes={safeProject.profile.vendorAttributes}
                                         type="vendorAttributes"
                                         onToggle={handleAttributeToggle}
                                         onRemove={removeAttribute}
@@ -306,11 +322,11 @@ function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBac
                                 </TabsContent>
                                 <TabsContent value="accounting">
                                     <AttributeEditor 
-                                        attributes={project.profile.accountingAttributes}
+                                        attributes={safeProject.profile.accountingAttributes}
                                         type="accountingAttributes"
                                         onToggle={handleAttributeToggle}
                                         onRemove={removeAttribute}
-                                        isDisabled={!project.profile.acctEnabled}
+                                        isDisabled={!safeProject.profile.acctEnabled}
                                     />
                                 </TabsContent>
                             </Tabs>
@@ -323,7 +339,7 @@ function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBac
                     size="lg" 
                     onClick={handlePreviewClick}
                     className={cn(showPreviewHint && "animate-pulse")}
-                    disabled={!project.name.trim() || !project.sharedSecret.trim() || project.subscriberGroups.length === 0}
+                    disabled={!project.name.trim() || !safeProject.sharedSecret.trim() || safeProject.subscriberGroups.length === 0}
                 >
                     <Eye className="mr-2"/>
                     Preview
@@ -362,7 +378,7 @@ function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBac
                 </Dialog>
             </div>
 
-            <PreviewAnimation open={isPreviewOpen} onOpenChange={setIsPreviewOpen} profile={project.profile} />
+            <PreviewAnimation open={isPreviewOpen} onOpenChange={setIsPreviewOpen} profile={safeProject.profile} />
         </div>
     );
 }
@@ -563,15 +579,17 @@ export default function ProjectsPage() {
                             <CardHeader>
                                 <CardTitle className="flex justify-between items-center">
                                     <span>{project.name}</span>
-                                    <Badge variant={project.status === 'Active' ? 'default' : 'secondary'}>{project.status}</Badge>
+                                    <Badge variant={project.auth_enabled ? 'default' : 'secondary'}>
+                                        {project.auth_enabled ? 'Auth Enabled' : 'Auth Disabled'}
+                                    </Badge>
                                 </CardTitle>
                                 <CardDescription className="truncate">{project.description}</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <p className="text-sm text-muted-foreground">Created: {project.createdAt}</p>
                                 <div className="mt-2">
-                                    {project.subscriberGroups.slice(0,3).map(g => <Badge key={g} variant="outline" className="mr-1">{g}</Badge>)}
-                                    {project.subscriberGroups.length > 3 && <Badge variant="outline">...</Badge>}
+                                    {(project.subscriberGroups || []).slice(0,3).map((g: string) => <Badge key={g} variant="outline" className="mr-1">{g}</Badge>)}
+                                    {(project.subscriberGroups || []).length > 3 && <Badge variant="outline">...</Badge>}
                                 </div>
                             </CardContent>
                         </Card>
