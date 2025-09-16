@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import * as api from '@/lib/api';
+import { generateNasIdentifier } from '@/lib/nas-config';
 
 // Project Data Type - Extended to support both API and UI requirements
 export type Project = {
@@ -27,6 +28,9 @@ export type Project = {
     authAttribute?: string;
     replyAttribute?: string;
     accAttribute?: string;
+    
+    // NAS Configuration
+    nasIdentifier?: string;
 };
 
 // Project profile type for RADIUS configuration
@@ -71,7 +75,10 @@ export const adaptApiProjectToUI = (apiProject: any): Project => {
         // Map attribute fields directly
         authAttribute: apiProject.authAttribute,
         replyAttribute: apiProject.replyAttribute,
-        accAttribute: apiProject.accAttribute
+        accAttribute: apiProject.accAttribute,
+        
+        // Generate NAS identifier if not present
+        nasIdentifier: apiProject.nasIdentifier || generateNasIdentifier(apiProject.organization_id)
     };
 };
 

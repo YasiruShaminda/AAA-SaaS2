@@ -18,8 +18,10 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuChe
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { PlusCircle, Trash2, Copy, FileText, Wifi, Building, X, MoreHorizontal, RefreshCw, FolderKanban, Search, Eye, EyeOff, ChevronLeft, Pencil, Library, FlaskConical, Terminal, Loader } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { PlusCircle, Trash2, Copy, FileText, Wifi, Building, X, MoreHorizontal, RefreshCw, FolderKanban, Search, Eye, EyeOff, ChevronLeft, Pencil, Library, FlaskConical, Terminal, Loader, HelpCircle } from 'lucide-react';
 import { TemplateManagerDialog, type ProfileTemplate } from '@/components/projects/TemplateManager';
+import { SetupGuideDialog } from '@/components/projects/SetupGuideDialog';
 import { useOrganization, type Project, type ProjectProfile, type Group } from '@/contexts/OrganizationContext';
 import * as api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,6 +29,7 @@ import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { PreviewAnimation } from '@/components/projects/PreviewAnimation';
 import { useToast } from '@/hooks/use-toast';
+import { getNasConfiguration, AAA_CONFIG, generateNasIdentifier } from '@/lib/nas-config';
 
 // Data types from the old /profiles page
 type ProfileAttributeType = 'checkAttributes' | 'replyAttributes' | 'vendorAttributes' | 'accountingAttributes';
@@ -90,6 +93,7 @@ function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBac
     const { user } = useAuth();
     const { selectedOrganization } = useOrganization();
     const [showSecret, setShowSecret] = useState(false);
+    const [copiedField, setCopiedField] = useState<string | null>(null);
     const [editedHeader, setEditedHeader] = useState({ name: project.name, description: project.description });
     const [isEditHeaderOpen, setIsEditHeaderOpen] = useState(false);
     const [isTemplateManagerOpen, setTemplateManagerOpen] = useState(false);
@@ -109,7 +113,11 @@ function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBac
             replyAttributes: project.replyAttribute ? project.replyAttribute.split(',').map(attr => attr.trim()) : [],
             vendorAttributes: [],
             accountingAttributes: project.accAttribute ? project.accAttribute.split(',').map(attr => attr.trim()) : []
-        }
+        },
+        // Ensure NAS identifier exists and is static per project
+        nasIdentifier: project.nasIdentifier || (selectedOrganization ? 
+            generateNasIdentifier(selectedOrganization.id) : 
+            'NAS-' + Math.random().toString(36).substring(2, 8))
     };
 
     console.log('ProjectEditor - Original project:', project);
@@ -147,6 +155,27 @@ function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBac
     const generateSecret = () => {
         onUpdate({...project, sharedSecret: Math.random().toString(36).substring(2) })
     };
+
+    // Copy to clipboard functionality
+    const copyToClipboard = async (text: string, fieldName: string) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            setCopiedField(fieldName);
+            setTimeout(() => setCopiedField(null), 2000);
+        } catch (err) {
+            console.error('Failed to copy:', err);
+        }
+    };
+
+    // Get NAS configuration data - use stored nasIdentifier if available
+    const nasConfig = selectedOrganization ? {
+        aaaServer: AAA_CONFIG.primaryServer,
+        aaaSecret: safeProject.sharedSecret,
+        authPort: AAA_CONFIG.authPort,
+        acctPort: AAA_CONFIG.acctPort,
+        nasIdentifier: safeProject.nasIdentifier || generateNasIdentifier(selectedOrganization.id),
+        siteInfo: { name: 'General Authentication', id: 'general_auth' }
+    } : null;
 
     const handleSaveHeader = () => {
         onUpdate({...project, name: editedHeader.name, description: editedHeader.description });
@@ -268,23 +297,137 @@ function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBac
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                  <div className="lg:col-span-1 space-y-6">
                     <Card className="glass-card">
-                        <CardHeader>
-                            <CardTitle>AAA Secret</CardTitle>
-                            <CardDescription>The shared secret for RADIUS communication.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                             <div className="flex items-center gap-2">
-                                <Input 
-                                    type={showSecret ? 'text' : 'password'} 
-                                    value={safeProject.sharedSecret}
-                                    readOnly
-                                    placeholder="Global shared secret"
-                                    className="font-mono"
-                                />
-                                <Button variant="ghost" size="icon" onClick={() => setShowSecret(prev => !prev)}>
-                                    {showSecret ? <EyeOff /> : <Eye />}
-                                </Button>
+                        <CardHeader className="pb-3">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <CardTitle>NAS-Configurations</CardTitle>
+                                    <CardDescription>Copy these values to configure your NAS device.</CardDescription>
+                                </div>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger>
+                                            <SetupGuideDialog>
+                                                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground h-8 w-8 p-0">
+                                                    <HelpCircle className="h-4 w-4" />
+                                                </Button>
+                                            </SetupGuideDialog>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>View setup guide</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
                             </div>
+                        </CardHeader>
+                        <CardContent className="pt-0">
+                            {nasConfig && (
+                                <div className="space-y-2">
+                                    {/* Configuration Table */}
+                                    <div className="grid gap-2">
+                                        {/* AAA Server */}
+                                        <div className="flex items-center justify-between py-1.5 px-2 rounded-md bg-muted/30">
+                                            <span className="text-sm font-medium min-w-[90px]">AAA Server</span>
+                                            <div className="flex items-center gap-2">
+                                                <code className="text-sm font-mono bg-background px-2 py-1 rounded border">
+                                                    {nasConfig.aaaServer}
+                                                </code>
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="icon"
+                                                    onClick={() => copyToClipboard(nasConfig.aaaServer, 'server')}
+                                                    className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                                                >
+                                                    {copiedField === 'server' ? <span className="text-green-500 text-xs">✓</span> : <Copy className="h-3 w-3" />}
+                                                </Button>
+                                            </div>
+                                        </div>
+
+                                        {/* AAA Secret */}
+                                        <div className="flex items-center justify-between py-1.5 px-2 rounded-md bg-muted/30">
+                                            <span className="text-sm font-medium min-w-[90px]">AAA Secret</span>
+                                            <div className="flex items-center gap-2">
+                                                <code className="text-sm font-mono bg-background px-2 py-1 rounded border">
+                                                    {showSecret ? nasConfig.aaaSecret : '••••••••••'}
+                                                </code>
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="icon" 
+                                                    onClick={() => setShowSecret(prev => !prev)}
+                                                    className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                                                >
+                                                    {showSecret ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                                                </Button>
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="icon"
+                                                    onClick={() => copyToClipboard(nasConfig.aaaSecret, 'secret')}
+                                                    className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                                                >
+                                                    {copiedField === 'secret' ? <span className="text-green-500 text-xs">✓</span> : <Copy className="h-3 w-3" />}
+                                                </Button>
+                                            </div>
+                                        </div>
+
+                                        {/* Ports Row */}
+                                        <div className="flex items-center justify-between py-1.5 px-2 rounded-md bg-muted/30">
+                                            <span className="text-sm font-medium min-w-[90px]">Ports</span>
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex items-center gap-1">
+                                                    <span className="text-xs text-muted-foreground">Auth:</span>
+                                                    <code className="text-sm font-mono bg-background px-1.5 py-0.5 rounded border">
+                                                        {nasConfig.authPort}
+                                                    </code>
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="icon"
+                                                        onClick={() => copyToClipboard(nasConfig.authPort.toString(), 'authPort')}
+                                                        className="h-5 w-5 text-muted-foreground hover:text-foreground"
+                                                    >
+                                                        {copiedField === 'authPort' ? <span className="text-green-500 text-xs">✓</span> : <Copy className="h-2.5 w-2.5" />}
+                                                    </Button>
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    <span className="text-xs text-muted-foreground">Acct:</span>
+                                                    <code className="text-sm font-mono bg-background px-1.5 py-0.5 rounded border">
+                                                        {nasConfig.acctPort}
+                                                    </code>
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="icon"
+                                                        onClick={() => copyToClipboard(nasConfig.acctPort.toString(), 'acctPort')}
+                                                        className="h-5 w-5 text-muted-foreground hover:text-foreground"
+                                                    >
+                                                        {copiedField === 'acctPort' ? <span className="text-green-500 text-xs">✓</span> : <Copy className="h-2.5 w-2.5" />}
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* NAS-Identifier */}
+                                        <div className="flex items-center justify-between py-1.5 px-2 rounded-md bg-muted/30">
+                                            <span className="text-sm font-medium min-w-[90px]">NAS-ID</span>
+                                            <div className="flex items-center gap-2">
+                                                <code className="text-sm font-mono bg-background px-2 py-1 rounded border">
+                                                    {nasConfig.nasIdentifier}
+                                                </code>
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="icon"
+                                                    onClick={() => copyToClipboard(nasConfig.nasIdentifier, 'nasId')}
+                                                    className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                                                >
+                                                    {copiedField === 'nasId' ? <span className="text-green-500 text-xs">✓</span> : <Copy className="h-3 w-3" />}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Template Info */}
+                                    <div className="text-xs text-muted-foreground text-center pt-1">
+                                        Template: {nasConfig.siteInfo.name}
+                                    </div>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                     <Card className="glass-card">
@@ -593,6 +736,15 @@ export default function ProjectsPage() {
     }
 
     const addProject = async () => {
+        if (!selectedOrganization) {
+            toast({
+                title: "Error",
+                description: "No organization selected",
+                variant: "destructive"
+            });
+            return;
+        }
+
         const newProjectData: Partial<Project> = {
             name: 'New Project',
             description: 'A new project ready for configuration.',
