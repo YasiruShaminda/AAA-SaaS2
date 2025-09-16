@@ -300,7 +300,7 @@ function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBac
                         <CardHeader className="pb-3">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <CardTitle>NAS-Configurations</CardTitle>
+                                    <CardTitle>NAS Configurations</CardTitle>
                                     <CardDescription>Copy these values to configure your NAS device.</CardDescription>
                                 </div>
                                 <TooltipProvider>
@@ -420,11 +420,6 @@ function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBac
                                                 </Button>
                                             </div>
                                         </div>
-                                    </div>
-                                    
-                                    {/* Template Info */}
-                                    <div className="text-xs text-muted-foreground text-center pt-1">
-                                        Template: {nasConfig.siteInfo.name}
                                     </div>
                                 </div>
                             )}
