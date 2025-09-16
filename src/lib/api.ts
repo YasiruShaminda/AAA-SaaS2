@@ -147,13 +147,29 @@ export const deleteGroup = (orgId: string, groupId: number) =>
 export const getProjects = (orgId: string) =>
     request<Project[]>(`/aaa/${orgId}/projects`);
 
-export const createProject = (orgId: string, projectData: Partial<Project>) =>
+export const getProject = (orgId: string, projectId: number) =>
+    request<Project>(`/aaa/${orgId}/projects/${projectId}`);
+
+export const createProject = (orgId: string, projectData: {
+    name: string;
+    description: string;
+    auth_enabled?: boolean;
+    acct_enabled?: boolean;
+    AccAttribute: string;
+    ReplyAttribute: string;
+    AuthAttribute: string;
+}) =>
     request<Project>(`/aaa/${orgId}/projects`, {
         method: 'POST',
         body: JSON.stringify(projectData),
     });
 
-export const updateProject = (orgId: string, projectId: number, projectData: Partial<Project>) =>
+export const updateProject = (orgId: string, projectId: number, projectData: {
+    name?: string;
+    description?: string;
+    auth_enabled?: boolean;
+    acct_enabled?: boolean;
+}) =>
     request<Project>(`/aaa/${orgId}/projects/${projectId}`, {
         method: 'PUT',
         body: JSON.stringify(projectData),
@@ -162,4 +178,45 @@ export const updateProject = (orgId: string, projectId: number, projectData: Par
 export const deleteProject = (orgId: string, projectId: number) =>
     request<any>(`/aaa/${orgId}/projects/${projectId}`, {
         method: 'DELETE',
+    });
+
+// Project Groups Management
+export const getProjectGroups = (orgId: string, projectId: number) =>
+    request<Group[]>(`/aaa/${orgId}/projects/${projectId}/groups`);
+
+export const addGroupToProject = (orgId: string, projectId: number, groupId: number) =>
+    request<any>(`/aaa/${orgId}/projects/${projectId}/groups`, {
+        method: 'POST',
+        body: JSON.stringify({ group_id: groupId }),
+    });
+
+export const updateProjectGroups = (orgId: string, projectId: number, groupIds: number[]) =>
+    request<any>(`/aaa/${orgId}/projects/${projectId}/groups`, {
+        method: 'PUT',
+        body: JSON.stringify({ groups: groupIds }),
+    });
+
+export const removeGroupsFromProject = (orgId: string, projectId: number, groupIds: number[]) =>
+    request<any>(`/aaa/${orgId}/projects/${projectId}/groups`, {
+        method: 'DELETE',
+        body: JSON.stringify({ groups: groupIds }),
+    });
+
+// Project RADIUS Profile Management
+export const createProjectRadProfile = (orgId: string, projectId: number, profileData: any) =>
+    request<any>(`/aaa/${orgId}/projects/${projectId}/radProfile`, {
+        method: 'POST',
+        body: JSON.stringify(profileData),
+    });
+
+export const updateProjectRadProfile = (orgId: string, projectId: number, profileData: any) =>
+    request<any>(`/aaa/${orgId}/projects/${projectId}/radProfile`, {
+        method: 'PATCH',
+        body: JSON.stringify(profileData),
+    });
+
+// Project Testing
+export const testProject = (orgId: string, projectId: number) =>
+    request<any>(`/aaa/${orgId}/projects/${projectId}/test`, {
+        method: 'POST',
     });

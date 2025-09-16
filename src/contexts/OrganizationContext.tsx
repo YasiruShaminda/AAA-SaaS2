@@ -20,8 +20,13 @@ export type Project = {
     status: 'Active' | 'Draft';
     createdAt: string;
     sharedSecret: string;
-    subscriberGroups: string[];
+    subscriberGroups: number[]; // Changed to number[] to match group IDs
     profile: ProjectProfile;
+    
+    // New fields for RADIUS attributes
+    authAttribute?: string;
+    replyAttribute?: string;
+    accAttribute?: string;
 };
 
 // Project profile type for RADIUS configuration
@@ -36,6 +41,8 @@ export type ProjectProfile = {
 
 // Adapter function to convert API project to UI project with defaults
 export const adaptApiProjectToUI = (apiProject: any): Project => {
+    console.log('Adapting API project to UI:', apiProject);
+    
     return {
         // Map API fields
         id: apiProject.id,
@@ -50,16 +57,21 @@ export const adaptApiProjectToUI = (apiProject: any): Project => {
         // Add UI defaults
         status: apiProject.auth_enabled ? 'Active' : 'Draft',
         createdAt: apiProject.created_at,
-        sharedSecret: 'shared-secret-' + Math.random().toString(36).substring(2),
+        sharedSecret: 'testing123', // Global secret as requested
         subscriberGroups: [],
         profile: {
             authEnabled: Boolean(apiProject.auth_enabled),
             acctEnabled: Boolean(apiProject.acct_enabled),
-            checkAttributes: [],
-            replyAttributes: [],
+            checkAttributes: apiProject.authAttribute ? apiProject.authAttribute.split(',').map((attr: string) => attr.trim()).filter(Boolean) : [],
+            replyAttributes: apiProject.replyAttribute ? apiProject.replyAttribute.split(',').map((attr: string) => attr.trim()).filter(Boolean) : [],
             vendorAttributes: [],
-            accountingAttributes: []
-        }
+            accountingAttributes: apiProject.accAttribute ? apiProject.accAttribute.split(',').map((attr: string) => attr.trim()).filter(Boolean) : []
+        },
+        
+        // Map attribute fields directly
+        authAttribute: apiProject.authAttribute,
+        replyAttribute: apiProject.replyAttribute,
+        accAttribute: apiProject.accAttribute
     };
 };
 
@@ -345,8 +357,67 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
                             project && typeof project === 'object' && project.id !== undefined
                         ).map(adaptApiProjectToUI);
                         
-                        setProjects(validProjects);
-                        console.log('Projects set to state:', validProjects);
+                        // Load detailed information for each project (groups and attributes)
+                        const projectsWithDetails = await Promise.all(
+                            validProjects.map(async (project) => {
+                                try {
+                                    // Load full project details including attributes
+                                    console.log(`Loading details for project ${project.id}`);
+                                    const fullProject = await api.getProject(selectedOrganization.id, project.id);
+                                    console.log(`Project ${project.id} - Full project API response:`, fullProject);
+                                    
+                                    // Update project with detailed information - API returns correct field names
+                                    project.authAttribute = (fullProject as any).authAttribute;
+                                    project.replyAttribute = (fullProject as any).replyAttribute;  
+                                    project.accAttribute = (fullProject as any).accAttribute;
+                                    
+                                    // Rebuild profile with latest attribute data
+                                    project.profile = {
+                                        authEnabled: Boolean(project.auth_enabled),
+                                        acctEnabled: Boolean(project.acct_enabled),
+                                        checkAttributes: project.authAttribute ? project.authAttribute.split(',').map((attr: string) => attr.trim()).filter(Boolean) : [],
+                                        replyAttributes: project.replyAttribute ? project.replyAttribute.split(',').map((attr: string) => attr.trim()).filter(Boolean) : [],
+                                        vendorAttributes: [],
+                                        accountingAttributes: project.accAttribute ? project.accAttribute.split(',').map((attr: string) => attr.trim()).filter(Boolean) : []
+                                    };
+                                    
+                                    // Load project groups
+                                    const projectGroups = await api.getProjectGroups(selectedOrganization.id, project.id);
+                                    console.log(`Project ${project.id} - Raw API groups response:`, projectGroups);
+                                    
+                                    if (Array.isArray(projectGroups) && projectGroups.length > 0) {
+                                        // API returns [{group_id: 29}, {group_id: 30}]
+                                        const extractedGroups = projectGroups.map((group: any) => {
+                                            console.log(`Processing group in context:`, group);
+                                            // Extract group_id from the response
+                                            return group.group_id;
+                                        }).filter((id: any) => id !== undefined && id !== null);
+                                        
+                                        console.log(`Project ${project.id} - Extracted group IDs:`, extractedGroups);
+                                        project.subscriberGroups = extractedGroups;
+                                    } else {
+                                        console.log(`Project ${project.id} - No groups found or empty response`);
+                                        project.subscriberGroups = [];
+                                    }
+                                    
+                                    console.log(`Project ${project.id} loaded:`, {
+                                        subscriberGroups: project.subscriberGroups,
+                                        authAttribute: project.authAttribute,
+                                        replyAttribute: project.replyAttribute,
+                                        accAttribute: project.accAttribute,
+                                        profile: project.profile
+                                    });
+                                    
+                                } catch (error) {
+                                    console.warn(`Failed to load details for project ${project.id}:`, error);
+                                    project.subscriberGroups = [];
+                                }
+                                return project;
+                            })
+                        );
+                        
+                        setProjects(projectsWithDetails);
+                        console.log('Projects set to state:', projectsWithDetails);
                     } catch (error) {
                         console.warn("Failed to load projects:", error);
                         setProjects([]);
@@ -599,16 +670,31 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
                     const projectData = {
                         name: 'My First AAA Project',
                         description: 'Welcome to your first AAA authentication project! This project helps you get started with RADIUS authentication.',
-                        status: 'Draft' as const,
-                        sharedSecret: 'testing123',
-                        subscriberGroups: [defaultGroup.name]
+                        auth_enabled: true,
+                        acct_enabled: false,
+                        AuthAttribute: 'User-Name,User-Password',
+                        ReplyAttribute: 'Reply-Message',
+                        AccAttribute: ''
                     };
                     console.log('Project data to send:', projectData);
                     
                     defaultProject = await api.createProject(targetOrg.id, projectData);
                     if (defaultProject) {
-                        setProjects(prev => [...prev, defaultProject!]);
-                        console.log('Default project created successfully:', defaultProject);
+                        // Convert to UI format and add default group
+                        const uiProject = adaptApiProjectToUI(defaultProject);
+                        uiProject.subscriberGroups = [defaultGroup.id];
+                        uiProject.sharedSecret = 'testing123';
+                        
+                        // Assign the default group to the project
+                        try {
+                            await api.addGroupToProject(targetOrg.id, defaultProject.id, defaultGroup.id);
+                            console.log('Default group assigned to project successfully');
+                        } catch (groupError) {
+                            console.warn('Failed to assign group to project:', groupError);
+                        }
+                        
+                        setProjects(prev => [...prev, uiProject]);
+                        console.log('Default project created successfully:', uiProject);
                     } else {
                         console.error('Project creation returned null/undefined');
                     }
@@ -636,8 +722,11 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
                 const apiProjectData = {
                     name: project.name || 'New Project',
                     description: project.description || '',
-                    auth_enabled: project.profile?.authEnabled ? 1 : (project.auth_enabled ?? 1),
-                    acct_enabled: project.profile?.acctEnabled ? 1 : (project.acct_enabled ?? 0)
+                    auth_enabled: project.profile?.authEnabled ?? Boolean(project.auth_enabled),
+                    acct_enabled: project.profile?.acctEnabled ?? Boolean(project.acct_enabled),
+                    AuthAttribute: project.profile?.checkAttributes?.join(',') || 'User-Name,User-Password',
+                    ReplyAttribute: project.profile?.replyAttributes?.join(',') || 'Reply-Message',
+                    AccAttribute: project.profile?.accountingAttributes?.join(',') || ''
                 };
                 
                 const apiProject = await api.createProject(selectedOrganization.id, apiProjectData);
@@ -665,11 +754,34 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
                 const apiProjectData = {
                     name: project.name,
                     description: project.description,
-                    auth_enabled: project.profile.authEnabled ? 1 : project.auth_enabled,
-                    acct_enabled: project.profile.acctEnabled ? 1 : project.acct_enabled
+                    auth_enabled: project.profile.authEnabled,
+                    acct_enabled: project.profile.acctEnabled
                 };
                 
                 const updatedApiProject = await api.updateProject(selectedOrganization.id, project.id, apiProjectData);
+                
+                // Update RADIUS profile if attributes have changed
+                const profileData = {
+                    AuthAttribute: project.profile.checkAttributes.join(','),
+                    ReplyAttribute: project.profile.replyAttributes.join(','),
+                    AccAttribute: project.profile.accountingAttributes.join(',')
+                };
+                
+                try {
+                    await api.updateProjectRadProfile(selectedOrganization.id, project.id, profileData);
+                } catch (profileError) {
+                    console.warn('Failed to update RADIUS profile:', profileError);
+                }
+                
+                // Update project groups if changed
+                if (project.subscriberGroups && project.subscriberGroups.length > 0) {
+                    try {
+                        await api.updateProjectGroups(selectedOrganization.id, project.id, project.subscriberGroups);
+                    } catch (groupError) {
+                        console.warn('Failed to update project groups:', groupError);
+                    }
+                }
+                
                 const updatedUiProject = adaptApiProjectToUI(updatedApiProject);
                 
                 // Preserve UI-specific fields

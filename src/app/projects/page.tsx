@@ -2,6 +2,7 @@
 
 'use client';
 
+// Force reload for syntax error fix
 import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PlusCircle, Trash2, Copy, FileText, Wifi, Building, X, MoreHorizontal, RefreshCw, FolderKanban, Search, Eye, EyeOff, ChevronLeft, Pencil, Library, FlaskConical, Terminal, Loader } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -18,16 +18,48 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuChe
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { PlusCircle, Trash2, Copy, FileText, Wifi, Building, X, MoreHorizontal, RefreshCw, FolderKanban, Search, Eye, EyeOff, ChevronLeft, Pencil, Library, FlaskConical, Terminal, Loader } from 'lucide-react';
 import { TemplateManagerDialog, type ProfileTemplate } from '@/components/projects/TemplateManager';
-import { useOrganization, type Project, type ProjectProfile } from '@/contexts/OrganizationContext';
+import { useOrganization, type Project, type ProjectProfile, type Group } from '@/contexts/OrganizationContext';
+import * as api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { PreviewAnimation } from '@/components/projects/PreviewAnimation';
+import { useToast } from '@/hooks/use-toast';
 
 // Data types from the old /profiles page
 type ProfileAttributeType = 'checkAttributes' | 'replyAttributes' | 'vendorAttributes' | 'accountingAttributes';
 export type Profile = ProjectProfile;
+
+// RADIUS attributes for project configuration
+const allAttributes = [
+    'User-Name', 'User-Password', 'CHAP-Password', 'NAS-IP-Address', 'NAS-Port',
+    'Service-Type', 'Framed-Protocol', 'Framed-IP-Address', 'Framed-IP-Netmask', 'Framed-Routing',
+    'Filter-Id', 'Framed-MTU', 'Framed-Compression', 'Login-IP-Host', 'Login-Service',
+    'Login-TCP-Port', 'Reply-Message', 'Callback-Number', 'Callback-Id', 'Framed-Route',
+    'Framed-IPX-Network', 'State', 'Class', 'Vendor-Specific', 'Session-Timeout',
+    'Idle-Timeout', 'Termination-Action', 'Called-Station-Id', 'Calling-Station-Id', 'NAS-Identifier',
+    'Proxy-State', 'Acct-Status-Type', 'Acct-Delay-Time', 'Acct-Input-Octets',
+    'Acct-Output-Octets', 'Acct-Session-Id', 'Acct-Authentic', 'Acct-Session-Time',
+    'Acct-Input-Packets', 'Acct-Output-Packets', 'Acct-Terminate-Cause', 'Acct-Multi-Session-Id',
+    'Acct-Link-Count', 'Cisco-AVPair', 'Ruckus-Wlan-ID', 'Actiontec-VLAN-ID'
+];
+
+// Format date for display
+const formatDate = (dateString?: string): string => {
+    if (!dateString) return 'Unknown';
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric' 
+        });
+    } catch {
+        return 'Invalid date';
+    }
+};
 
 const allRadiusAttributes = [
     'User-Name', 'User-Password', 'CHAP-Password', 'NAS-IP-Address', 'NAS-Port', 
@@ -43,9 +75,20 @@ const allRadiusAttributes = [
 ];
 
 // Project Editor Component
-function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBack, subscriberGroups }: { project: Project, onUpdate: (project: Project) => void, onSave: () => void, onDelete: () => void, onDuplicate: () => void, onBack: () => void, subscriberGroups: string[] }) {
+function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBack, subscriberGroups, onGroupAdd, onGroupRemove }: { 
+    project: Project, 
+    onUpdate: (project: Project) => void, 
+    onSave: () => void, 
+    onDelete: () => void, 
+    onDuplicate: () => void, 
+    onBack: () => void, 
+    subscriberGroups: Group[],
+    onGroupAdd: (groupId: number) => void,
+    onGroupRemove: (groupId: number) => void
+}) {
     const router = useRouter();
     const { user } = useAuth();
+    const { selectedOrganization } = useOrganization();
     const [showSecret, setShowSecret] = useState(false);
     const [editedHeader, setEditedHeader] = useState({ name: project.name, description: project.description });
     const [isEditHeaderOpen, setIsEditHeaderOpen] = useState(false);
@@ -57,17 +100,21 @@ function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBac
     // Ensure project has required fields with defaults
     const safeProject: Project = {
         ...project,
-        sharedSecret: project.sharedSecret || 'shared-secret-' + Math.random().toString(36).substring(2),
+        sharedSecret: 'testing123', // Global secret for all projects
         subscriberGroups: project.subscriberGroups || [],
         profile: project.profile || {
             authEnabled: Boolean(project.auth_enabled),
             acctEnabled: Boolean(project.acct_enabled),
-            checkAttributes: [],
-            replyAttributes: [],
+            checkAttributes: project.authAttribute ? project.authAttribute.split(',').map(attr => attr.trim()) : [],
+            replyAttributes: project.replyAttribute ? project.replyAttribute.split(',').map(attr => attr.trim()) : [],
             vendorAttributes: [],
-            accountingAttributes: []
+            accountingAttributes: project.accAttribute ? project.accAttribute.split(',').map(attr => attr.trim()) : []
         }
     };
+
+    console.log('ProjectEditor - Original project:', project);
+    console.log('ProjectEditor - SafeProject:', safeProject);
+    console.log('ProjectEditor - Available groups:', subscriberGroups);
 
 
     useEffect(() => {
@@ -124,6 +171,17 @@ function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBac
         setTemplateManagerOpen(false);
     };
     
+    const handleTestProject = async () => {
+        if (!selectedOrganization) return;
+        
+        try {
+            const result = await api.testProject(selectedOrganization.id, project.id);
+            console.log('Project test result:', result);
+        } catch (error) {
+            console.error('Project test failed:', error);
+        }
+    };
+
     const handlePreviewClick = () => {
         if (user) {
             localStorage.removeItem(`onboarding_show_preview_hint_${user.name}`);
@@ -219,15 +277,12 @@ function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBac
                                 <Input 
                                     type={showSecret ? 'text' : 'password'} 
                                     value={safeProject.sharedSecret}
-                                    onChange={(e) => onUpdate({...project, sharedSecret: e.target.value})}
-                                    placeholder="Enter shared secret"
+                                    readOnly
+                                    placeholder="Global shared secret"
                                     className="font-mono"
                                 />
                                 <Button variant="ghost" size="icon" onClick={() => setShowSecret(prev => !prev)}>
                                     {showSecret ? <EyeOff /> : <Eye />}
-                                </Button>
-                                <Button variant="ghost" size="icon" onClick={generateSecret}>
-                                    <RefreshCw />
                                 </Button>
                             </div>
                         </CardContent>
@@ -243,22 +298,26 @@ function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBac
                                     <Button variant="outline" className="w-full justify-start"><PlusCircle className="mr-2"/> Add group...</Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent>
-                                    {subscriberGroups.filter(g => !safeProject.subscriberGroups.includes(g)).map(group => (
-                                        <DropdownMenuItem key={group} onSelect={() => onUpdate({...project, subscriberGroups: [...safeProject.subscriberGroups, group]})}>
-                                            {group}
+                                    {subscriberGroups.filter(g => !safeProject.subscriberGroups.includes(g.id)).map(group => (
+                                        <DropdownMenuItem key={group.id} onSelect={() => onGroupAdd(group.id)}>
+                                            {group.name}
                                         </DropdownMenuItem>
                                     ))}
                                 </DropdownMenuContent>
                             </DropdownMenu>
                             <div className="mt-4 space-y-2">
-                                {safeProject.subscriberGroups.map((group: string) => (
-                                    <Badge key={group} variant="secondary" className="text-base mr-2">
-                                        {group}
-                                        <button onClick={() => onUpdate({...safeProject, subscriberGroups: safeProject.subscriberGroups.filter((g: string) => g !== group)})} className="ml-2 rounded-full hover:bg-muted-foreground/20 p-0.5">
-                                            <X className="size-3" />
-                                        </button>
-                                    </Badge>
-                                ))}
+                                {safeProject.subscriberGroups.map((groupId: number) => {
+                                    const group = subscriberGroups.find(g => g.id === groupId);
+                                    if (!group) return null;
+                                    return (
+                                        <Badge key={groupId} variant="secondary" className="text-base mr-2">
+                                            {group.name}
+                                            <button onClick={() => onGroupRemove(groupId)} className="ml-2 rounded-full hover:bg-muted-foreground/20 p-0.5">
+                                                <X className="size-3" />
+                                            </button>
+                                        </Badge>
+                                    );
+                                })}
                             </div>
                         </CardContent>
                     </Card>
@@ -373,6 +432,7 @@ function ProjectEditor({ project, onUpdate, onSave, onDelete, onDuplicate, onBac
                         </div>
                         <DialogFooter>
                             <Button variant="outline" onClick={() => setIsCliTestOpen(false)}>Close</Button>
+                            <Button onClick={handleTestProject}>Run Test</Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
@@ -431,8 +491,9 @@ function AttributeEditor({ attributes, type, onToggle, onRemove, isDisabled }: {
 
 // Main Page Component
 export default function ProjectsPage() {
-    const { projects, groups, addProject: addProjectToContext, updateProject: updateProjectInContext, deleteProject: deleteProjectFromContext, isOrgDataLoaded } = useOrganization();
+    const { projects, groups, selectedOrganization, addProject: addProjectToContext, updateProject: updateProjectInContext, deleteProject: deleteProjectFromContext, isOrgDataLoaded } = useOrganization();
     const { user } = useAuth();
+    const { toast } = useToast();
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
     const [isBlinking, setIsBlinking] = useState(false);
 
@@ -445,8 +506,78 @@ export default function ProjectsPage() {
         }
     }, [user]);
 
-    const handleSelectProject = (project: Project) => {
+    const handleSelectProject = async (project: Project) => {
+        console.log('Selecting project:', project);
+        console.log('Project subscriber groups:', project.subscriberGroups);
+        console.log('Project profile:', project.profile);
+        
+        // Set the project immediately for responsive UI
         setSelectedProject(project);
+        
+        // Load fresh project details to ensure we have latest groups and attributes
+        // Re-enabling to debug API responses
+        const ENABLE_FRESH_DATA_LOADING = true;
+        
+        if (ENABLE_FRESH_DATA_LOADING) {
+            try {
+                if (selectedOrganization) {
+                console.log('Fetching fresh project details for project ID:', project.id);
+                const freshProjectDetails = await api.getProject(selectedOrganization.id, project.id);
+                console.log('Fresh project details response:', freshProjectDetails);
+                
+                const freshProjectGroups = await api.getProjectGroups(selectedOrganization.id, project.id);
+                console.log('Fresh project groups response:', freshProjectGroups);
+                
+                // Create updated project with fresh data - preserve original data if fresh data is missing
+                const freshGroups = Array.isArray(freshProjectGroups) ? 
+                    freshProjectGroups.map((group: any) => {
+                        console.log('Processing group:', group);
+                        // API returns {group_id: 29} format
+                        return group.group_id;
+                    }).filter(id => id !== undefined) : [];
+                
+                const freshAuthAttr = (freshProjectDetails as any).authAttribute;
+                const freshReplyAttr = (freshProjectDetails as any).replyAttribute;
+                const freshAccAttr = (freshProjectDetails as any).accAttribute;
+                
+                console.log('Fresh data attributes:', { freshAuthAttr, freshReplyAttr, freshAccAttr });
+                console.log('Original project attributes:', { 
+                    authAttribute: project.authAttribute, 
+                    replyAttribute: project.replyAttribute, 
+                    accAttribute: project.accAttribute 
+                });
+                
+                const updatedProject = {
+                    ...project,
+                    // Use fresh attributes (API returns correct field names)
+                    authAttribute: freshAuthAttr || project.authAttribute,
+                    replyAttribute: freshReplyAttr || project.replyAttribute,
+                    accAttribute: freshAccAttr || project.accAttribute,
+                    // IMPORTANT: Always preserve original groups if fresh groups are empty
+                    subscriberGroups: freshGroups.length > 0 ? freshGroups : (project.subscriberGroups || []),
+                    profile: {
+                        authEnabled: Boolean(project.auth_enabled),
+                        acctEnabled: Boolean(project.acct_enabled),
+                        checkAttributes: (freshAuthAttr || project.authAttribute) ? 
+                            (freshAuthAttr || project.authAttribute).split(',').map((attr: string) => attr.trim()).filter(Boolean) : [],
+                        replyAttributes: (freshReplyAttr || project.replyAttribute) ? 
+                            (freshReplyAttr || project.replyAttribute).split(',').map((attr: string) => attr.trim()).filter(Boolean) : [],
+                        vendorAttributes: [],
+                        accountingAttributes: (freshAccAttr || project.accAttribute) ? 
+                            (freshAccAttr || project.accAttribute).split(',').map((attr: string) => attr.trim()).filter(Boolean) : []
+                    }
+                };
+                
+                console.log('Updated project with fresh data:', updatedProject);
+                console.log('Final subscriberGroups:', updatedProject.subscriberGroups);
+                setSelectedProject(updatedProject);
+                }
+            } catch (error) {
+                console.warn('Failed to load fresh project details:', error);
+                // Continue with the original project data
+            }
+        }
+        
         if (user) {
             const onboardingStatus = localStorage.getItem(`onboarding_complete_project_${user.name}`);
             if (onboardingStatus === 'false') {
@@ -466,13 +597,13 @@ export default function ProjectsPage() {
             name: 'New Project',
             description: 'A new project ready for configuration.',
             status: 'Draft',
-            sharedSecret: '',
+            sharedSecret: 'shared-secret-' + Math.random().toString(36).substring(2),
             subscriberGroups: [],
             profile: {
                 authEnabled: true,
                 acctEnabled: false,
-                checkAttributes: [],
-                replyAttributes: [],
+                checkAttributes: ['User-Name', 'User-Password'],
+                replyAttributes: ['Reply-Message'],
                 vendorAttributes: [],
                 accountingAttributes: [],
             }
@@ -484,19 +615,86 @@ export default function ProjectsPage() {
     };
     
     const updateProject = (updatedProject: Project) => {
+        console.log('Updating project in UI:', updatedProject);
         setSelectedProject(updatedProject);
         // This is an unsaved change in the editor. The actual save happens in `saveProject`.
     };
 
     const saveProject = async () => {
         if (!selectedProject) return;
-        await updateProjectInContext(selectedProject);
+        
+        try {
+            await updateProjectInContext(selectedProject);
+            toast({
+                title: "Success",
+                description: `Project "${selectedProject.name}" has been saved successfully.`,
+            });
+        } catch (error) {
+            console.error('Failed to save project:', error);
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Failed to save project. Please try again.",
+            });
+        }
     };
 
     const deleteProject = async () => {
         if (!selectedProject) return;
-        await deleteProjectFromContext(selectedProject.id);
-        setSelectedProject(null);
+        
+        try {
+            await deleteProjectFromContext(selectedProject.id);
+            toast({
+                title: "Success",
+                description: `Project "${selectedProject.name}" has been deleted successfully.`,
+            });
+            setSelectedProject(null);
+        } catch (error) {
+            console.error('Failed to delete project:', error);
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Failed to delete project. Please try again.",
+            });
+        }
+    };
+
+    // Check if a subscriber group is already assigned to another project
+    const isGroupAssignedElsewhere = (groupId: number): { isAssigned: boolean; projectName?: string } => {
+        for (const project of projects) {
+            if (project.id !== selectedProject?.id && project.subscriberGroups.includes(groupId)) {
+                return { isAssigned: true, projectName: project.name };
+            }
+        }
+        return { isAssigned: false };
+    };
+
+    const handleGroupAddition = (groupId: number) => {
+        if (!selectedProject) return;
+
+        const conflict = isGroupAssignedElsewhere(groupId);
+        if (conflict.isAssigned && conflict.projectName) {
+            toast({
+                variant: "destructive",
+                title: "Group Assignment Conflict",
+                description: `This group is already assigned to project "${conflict.projectName}". Please remove it from that project first.`,
+            });
+            return;
+        }
+
+        setSelectedProject({
+            ...selectedProject,
+            subscriberGroups: [...selectedProject.subscriberGroups, groupId]
+        });
+    };
+
+    const handleGroupRemoval = (groupId: number) => {
+        if (!selectedProject) return;
+        
+        setSelectedProject({
+            ...selectedProject,
+            subscriberGroups: selectedProject.subscriberGroups.filter(gId => gId !== groupId)
+        });
     };
     
     const duplicateProject = async () => {
@@ -521,7 +719,9 @@ export default function ProjectsPage() {
                 onDelete={deleteProject}
                 onDuplicate={duplicateProject}
                 onBack={handleBack}
-                subscriberGroups={groups.map(g => g.name)}
+                subscriberGroups={groups}
+                onGroupAdd={handleGroupAddition}
+                onGroupRemove={handleGroupRemoval}
             />
         )
     }
@@ -579,16 +779,24 @@ export default function ProjectsPage() {
                             <CardHeader>
                                 <CardTitle className="flex justify-between items-center">
                                     <span>{project.name}</span>
-                                    <Badge variant={project.auth_enabled ? 'default' : 'secondary'}>
-                                        {project.auth_enabled ? 'Auth Enabled' : 'Auth Disabled'}
-                                    </Badge>
+                                    <div className="flex gap-1">
+                                        <Badge variant={project.auth_enabled ? 'default' : 'secondary'} className="text-xs">
+                                            {project.auth_enabled ? 'Auth' : 'No Auth'}
+                                        </Badge>
+                                        <Badge variant={project.acct_enabled ? 'default' : 'secondary'} className="text-xs">
+                                            {project.acct_enabled ? 'Acct' : 'No Acct'}
+                                        </Badge>
+                                    </div>
                                 </CardTitle>
                                 <CardDescription className="truncate">{project.description}</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <p className="text-sm text-muted-foreground">Created: {project.createdAt}</p>
+                                <p className="text-sm text-muted-foreground">Created: {formatDate(project.createdAt)}</p>
                                 <div className="mt-2">
-                                    {(project.subscriberGroups || []).slice(0,3).map((g: string) => <Badge key={g} variant="outline" className="mr-1">{g}</Badge>)}
+                                    {(project.subscriberGroups || []).slice(0,3).map((groupId: number) => {
+                                        const group = groups.find(g => g.id === groupId);
+                                        return group ? <Badge key={groupId} variant="outline" className="mr-1">{group.name}</Badge> : null;
+                                    })}
                                     {(project.subscriberGroups || []).length > 3 && <Badge variant="outline">...</Badge>}
                                 </div>
                             </CardContent>
