@@ -10,8 +10,8 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { RouteGuard } from '@/components/auth/RouteGuard';
 
 export const metadata: Metadata = {
-  title: 'Monyfi SaaS',
-  description: 'Intuitive management for FreeRADIUS',
+  title: 'Monyfi AAA',
+  description: 'Intuitive management for AAA systems',
 };
 
 export default function RootLayout({

@@ -123,7 +123,7 @@ export function AppSidebar() {
         <div className="flex items-center gap-3 p-2">
             <Logo />
             <h1 className="font-headline text-lg font-semibold text-foreground group-data-[collapsible=icon]:hidden">
-            Monyfi SaaS
+            Monyfi AAA
             </h1>
         </div>
       </SidebarHeader>

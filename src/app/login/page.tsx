@@ -114,11 +114,18 @@ export default function LoginPage() {
                 <div className="absolute -inset-0.5 animate-pulse rounded-lg bg-primary/50 opacity-75 blur-2xl"></div>
                 <Card className="relative glass-card">
                      <CardHeader className="text-center">
-                        <div className="mx-auto mb-4 flex items-center justify-center size-16 bg-primary/10 rounded-full border border-primary/20">
-                           <Waypoints className="size-8 text-primary" />
+                        <div className="flex items-center justify-center pt-2">
+                            <img
+                                src="/Monyfi-main-logo-for-dark.png"
+                                alt="Monyfi main logo"
+                                className="w-auto h-25 sm:h-14 object-contain"
+                                style={{ maxWidth: '220px' }}
+                            />
                         </div>
-                        <CardTitle className="font-headline text-3xl">Access Terminal</CardTitle>
-                        <CardDescription>Monify AAA Authentication</CardDescription>
+                        {/*
+                        <CardTitle className="font-headline text-3xl">Access Terminal</CardTitle>*/}
+                        <CardDescription>Login into Monify AAA</CardDescription>
+                        
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <Form {...form}>

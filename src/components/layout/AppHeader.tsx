@@ -33,7 +33,7 @@ export function AppHeader() {
   const pathname = usePathname();
   const { selectedOrganization } = useOrganization();
   const { user } = useAuth();
-  const title = pageTitles[pathname] || 'Monyfi SaaS';
+  const title = pageTitles[pathname] || 'Monyfi AAA';
 
   // Handle different possible field names from the API
   const userAny = user as any;
