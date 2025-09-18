@@ -1,12 +1,12 @@
 import { Organization, Subscriber, Product, Group, Project } from '@/contexts/OrganizationContext';
 
-const API_BASE_URL = 'http://54.205.5.145:3500/v1';
+const API_BASE_URL = '/api/v1';
 const USER_API_KEY = 'FA52BCD47738DE6ED22A874148D4B';
 
 // Use proxy in development to avoid CORS issues
 const USER_API_BASE_URL = process.env.NODE_ENV === 'development' 
   ? '/api/proxy'
-  : 'http://54.205.5.145:3500/v1';
+  : '/api/v1';
 
 async function request<T>(
   endpoint: string,
