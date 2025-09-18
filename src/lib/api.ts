@@ -1,6 +1,12 @@
 import { Organization, Subscriber, Product, Group, Project } from '@/contexts/OrganizationContext';
 
-const API_BASE_URL = '/api/v1';
+const API_BASE_URL = 'http://54.205.5.145:3500/v1';
+const USER_API_KEY = 'FA52BCD47738DE6ED22A874148D4B';
+
+// Use proxy in development to avoid CORS issues
+const USER_API_BASE_URL = process.env.NODE_ENV === 'development' 
+  ? '/api/proxy'
+  : 'http://54.205.5.145:3500/v1';
 
 async function request<T>(
   endpoint: string,
@@ -46,18 +52,104 @@ async function request<T>(
   return (data.data !== undefined ? data.data : data) as T;
 }
 
+// User registration request function with API key
+async function userApiRequest<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const headers = new Headers(options.headers);
+  headers.set('Content-Type', 'application/json');
+  headers.set('accept', 'application/json');
+  headers.set('x-api-key', USER_API_KEY);
+
+  const response = await fetch(`${USER_API_BASE_URL}${endpoint}`, {
+    ...options,
+    headers,
+  });
+
+  const data = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(data.message || `HTTP ${response.status}: ${response.statusText}`);
+  }
+
+  // Add success property based on response status
+  return {
+    ...data,
+    success: response.ok
+  } as T;
+}
+
 // Authentication
 export const login = (credentials: any) =>
   request<any>('/auth/login', {
     method: 'POST',
     body: JSON.stringify(credentials),
   });
+
+export const getAuthenticatedUser = () => request<any>('/auth/user');
+
+// User Registration with Email Verification
+export interface RegisterUserData {
+  username: string;
+  password: string;
+  email: string;
+}
+
+export interface RegisterResponse {
+  status: string;
+  message: string;
+  statusCode: number;
+  data: {
+    id: number;
+    username: string;
+    password: string;
+    email: string;
+    is_email_verified: boolean;
+    created_at: string;
+    updated_at: string;
+    emailSent: boolean;
+    requiresVerification: boolean;
+  };
+}
+
+export interface VerifyEmailData {
+  email: string;
+  code: string;
+}
+
+export interface ApiResponse {
+  status: string;
+  message: string;
+  statusCode: number;
+  success: boolean;
+  data: any;
+}
+
+export const registerUser = (userData: RegisterUserData) =>
+  userApiRequest<RegisterResponse>('/user/register', {
+    method: 'POST',
+    body: JSON.stringify(userData),
+  });
+
+export const verifyEmail = (verifyData: VerifyEmailData) =>
+  userApiRequest<ApiResponse>('/user/verify-email', {
+    method: 'POST',
+    body: JSON.stringify(verifyData),
+  });
+
+export const resendVerificationCode = (email: string) =>
+  userApiRequest<ApiResponse>('/user/resend-verification-code', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+
+// Legacy register function (keeping for compatibility)
 export const register = (userInfo: any) =>
   request<any>('/user/register', {
     method: 'POST',
     body: JSON.stringify(userInfo),
   });
-export const getAuthenticatedUser = () => request<any>('/auth/user');
 
 // Organizations
 export const getOrganizations = (ownerId: number) =>

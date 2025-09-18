@@ -6,16 +6,15 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UserPlus, Waypoints } from 'lucide-react';
+import { UserPlus, Waypoints, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import Link from 'next/link';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-
+import { registerUser, RegisterUserData } from '@/lib/api';
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -23,11 +22,10 @@ const formSchema = z.object({
   password: z.string().min(8, { message: "Password must be at least 8 characters." }),
 });
 
-
 export default function RegisterPage() {
     const router = useRouter();
-    const { register } = useAuth();
     const { toast } = useToast();
+    const [isRegistering, setIsRegistering] = useState(false);
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -39,19 +37,40 @@ export default function RegisterPage() {
     });
 
     const handleRegister = async (values: z.infer<typeof formSchema>) => {
+        setIsRegistering(true);
+        
         try {
-            await register(values.username, values.email, values.password);
-            toast({
-                title: "Registration Successful",
-                description: "Please check your email to verify your account.",
-            });
-            router.push('/verify-email');
+            const userData: RegisterUserData = {
+                username: values.username,
+                password: values.password,
+                email: values.email,
+            };
+            
+            const response = await registerUser(userData);
+            
+            if (response.status === 'SUCCESS') {
+                toast({
+                    title: "Registration Successful! 🎉",
+                    description: "Please check your email for the verification code.",
+                    className: "border-green-500/20 bg-green-950/50 text-green-400",
+                });
+                
+                // Store email for verification page
+                sessionStorage.setItem('pending_verification_email', values.email);
+                router.push('/verify-email');
+            } else {
+                throw new Error(response.message || 'Registration failed');
+            }
         } catch (error: any) {
+            console.error('Registration error:', error);
             toast({
                 variant: "destructive",
                 title: "Registration Failed",
-                description: error.message,
+                description: error.message || "Something went wrong. Please try again.",
+                className: "border-red-500/20 bg-red-950/50 text-red-400"
             });
+        } finally {
+            setIsRegistering(false);
         }
     };
 
@@ -114,9 +133,9 @@ export default function RegisterPage() {
                                         </FormItem>
                                     )}
                                 />
-                                <Button type="submit" className="w-full" size="lg">
-                                    <UserPlus className="mr-2"/>
-                                    Register
+                                <Button type="submit" className="w-full" size="lg" disabled={isRegistering}>
+                                    {isRegistering ? <Loader2 className="mr-2 animate-spin" /> : <UserPlus className="mr-2"/>}
+                                    {isRegistering ? "Creating Account..." : "Register"}
                                 </Button>
                             </form>
                         </Form>

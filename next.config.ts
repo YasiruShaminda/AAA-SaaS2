@@ -18,6 +18,14 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: '/api/proxy/:path*',
+        destination: 'http://54.205.5.145:3500/v1/:path*',
+      },
+    ];
+  },
 };
 
 export default nextConfig;
